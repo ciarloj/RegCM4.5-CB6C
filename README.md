@@ -1,8 +1,10 @@
 # RegCM 4.5 - CB6C
 
-RegCM v4.5 - Gas Phase Module CB6vC Configured to run as an option instead of CMBZ
+RegCM v4.5 - Gas Phase Module CB6r2vC Configured to run as an option instead of CMBZ
 
 ## Usage
+
+config and make as you would with your standard RegCM4 (https://www.ictp.it/research/esp/models/regcm4.aspx)
 
 To use simply input CB6C instead of CBMZ as 'chemsimtype' in the 'chemparam' stanza of your namelist.
 
