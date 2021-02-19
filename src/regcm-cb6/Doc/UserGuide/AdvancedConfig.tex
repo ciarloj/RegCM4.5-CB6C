@@ -1,0 +1,1414 @@
+%
+% This file is part of ICTP RegCM model.
+% Copyright (C) 2011 ICTP Trieste
+% See the file COPYING for copying conditions.
+%
+
+We will examine in this chapter in more detail the namelist configuration file,
+to give you the User a deeper knowledge of model capabilities.
+
+\section{The commented namelist}
+
+In this section we will show you the commented namelist input file you will
+find under \verb=$REGCM_ROOT/Doc= with the name \verb=README.namelist= .
+All model programs seen so far, with the exception of the GrADS helper program,
+use as input this namelist file, which is unique to a particular simulation.
+The model input namelist file is composed by a number of different namelists,
+each one devoted to configuring the model capabilities.
+A namelist in the namelist file is identified with a starting \verb=&= character
+followed by namelist name, and ends on a single line with the \verb=\=
+character.
+
+\subsection{dimparam namelist}
+\label{dimparam}
+
+This namelist contains the base X,Y,Z domain dimension information, used
+by the model dynamic memory allocator to request the Operating System the
+memory space to store the model internal variables.
+
+{\footnotesize
+\begin{Verbatim}
+ &dimparam
+ iy     = 34,   ! This is number of points in the N/S direction
+ jx     = 48,   ! This is number of points in the E/W direction
+ kz     = 18,   ! Number of vertical levels
+ dsmin  = 0.01, ! Minimum sigma spacing (only used if kz is not 14, 18, or 23)
+ dsmax  = 0.05, ! Maximum sigma spacing (only used if kz is not 14, 18, or 23)
+ nsg    = 1,    ! For subgridding, number of points to decompose. If nsg=1,
+                ! no subgridding is performed. CLM3.5 does NOT work with
+                ! subgridding enabled.
+ /
+\end{Verbatim}
+}
+
+The things you need to know here:
+
+\begin{enumerate}
+\item In the current version 4.4 the model parallelizes execution dividing
+the work between the processors, with the minimum work per processor is 9
+points or a box $3*3$, so the maximum number of processors which can be used
+in a parallel run for the above configuration is roughly $180$.
+\item If a custom number of sigma level is chosen (not 14, 18 or 23), the actual
+sigma values are calculated mimimizing the $a,b$ coefficients for the 
+equation:
+
+\begin{equation}
+  dsig(i) = dsmax*a^{i-1}*b^{0.5*(i-2)*(i-1)}
+\end{equation}
+
+derived from the recursive relation:
+
+\begin{equation}
+  dsig(i) = a(i)*dsig(i-1)
+\end{equation}
+
+where $a(i) = b*a(i-1)$. We at ICTP normally use 18 levels.
+\item Specifying an nsg number greater than one triggers the subgrid BATS model
+on. There is no plan to extend this feature to CLM3.5 model. This affects only
+surface variable calculations. All dynamical variables are calculated still
+on the coarser grid. Rain in the current implementation is also calculated on
+the coarser grid.
+\end{enumerate}
+
+\subsection{geoparam namelist}
+\label{geoparam}
+
+This namelist is used by the \verb=terrain= program to geolocate the model grid
+on the earth surface. The RegCM model uses a limited number of projection
+engines. The value here are used by the other model programs to assert
+consistency with the geolocation information written by the \verb=terrain=
+program in the \verb=DOMAIN= file.
+
+The first step in any application is the selection of model domain and
+resolution. There are no strict rules for this selection, which in fact is
+mostly determined by the nature of the problem and the availability of
+computing resources. The domain should be large enough to allow the model to
+develop its own circulations and to include all relevant forcings and
+processes, and the resolution should be high enough to capture local processes
+of interest (e.g. due to complex topography or land surface).
+
+On the other hand the model computational cost increases rapidly with
+resolution and domain size, so a compromise needs to be usually reached
+between all these factors.
+
+This is usually achieved by experience, understanding of the problem or
+trial and error, however one tip to remember is to avoid that the boundaries
+of the domain cross major topographical systems.
+
+This is because the mismatch in the resolution of the coarse scale lateral
+driving fields and the model fields in the presence of steep topography may
+generate spurious local effects (e.g. localized precipitation areas) which can
+affect the model behavior, at least in adjacent areas. 
+
+{\footnotesize
+\begin{Verbatim}
+ &geoparam
+ iproj = 'LAMCON', ! Domain cartographic projection. Supported values are:
+                   ! 'LAMCON', Lambert conformal.
+                   ! 'POLSTR', Polar stereographic. (Doesn't work)
+                   ! 'NORMER', Normal  Mercator.
+                   ! 'ROTMER', Rotated Mercator.
+ ds = 60.0,        ! Grid point horizontal resolution in km
+ ptop = 5.0,       ! Pressure of model top in cbar
+ clat = 45.39,     ! Central latitude  of model domain in degrees
+                   ! North hemisphere is positive
+ clon = 13.48,     ! Central longitude of model domain in degrees
+                   ! West is negative.
+ plat = 45.39,     ! Pole latitude (only for rotated Mercator Proj)
+ plon = 13.48,     ! Pole longitude (only for rotated Mercator Proj)
+ truelatl = 30.0,  ! Lambert true latitude (low latitude side)
+ truelath = 60,    ! Lambert true latitude (high latitude side)
+ i_band = 0,       ! Use this to enable a tropical band. In this case the ds,
+                   ! iproj, clat, clon parameters are not considered.
+ /
+\end{Verbatim}
+}
+
+The things you need to know here:
+
+\begin{enumerate}
+\item The different projection engines produce better results depending on the
+position and extent of the domain. In particular, regardless of hemisphere:
+\begin{itemize}
+\item Middle latitudes (around 45 degrees) - Lambert Conformal
+\item Polar latitudes (more than 75 degrees) - Polar Stereographic
+\item Low latitudes (up to 30 degrees and crossing the equator) - Mercator
+\item Crossing more than 45 degrees extent in latitude - Rotated Mercator
+\end{itemize}
+\item The model hydrostatic engine does not allow a resolution lower than
+$20 km$. If you want a higher resolution consider using the subgridding scheme.
+ICTP plans to introduce in the future a non-hydrostatic compressible core to
+the RegCM model.
+\item Lowering the top pressure of the model can give you problems in regions
+with complex topography. Touch the default after thinking twice on that.
+\item Always specify \verb=clat= and \verb=clon=, the central domain point,
+and do fine adjustment of the position moving it around a little bit. A
+little shift in position and some tests can help you obtain a better
+representation of coastlines and topography at the coarse resolutions.
+\item If using \verb=LAMCON= projection, take care to place the two
+true latitudes at around one fourth and three fourth of the domain latitude
+space to better correct the projection distortion of the domain.
+\item The pole position for the rotated mercator position should be as near as
+possible to the center domain position.
+\item For the \verb=i_band= parameter, selecting this will enable the tropical
+band experiment, and the horizontal resolution will be calculated from the
+number of jx points.
+The projection is set to Normal Mercator, the center of the projection is set
+to \verb'clat = 0.0', \verb'clon = 180.0',
+and the grid point resolution is calculated as:
+\begin{equation}
+\frac{2*\pi*6370.0}{jx}
+\end{equation}
+Just remember:
+\begin{enumerate}
+\item The model for a tropical band simulation is heavy, as the number of points
+is usually huge to obtain a good horizontal resolution. Check any memory
+limit is disabled on your platform before attempting a run.
+\item The model scales well on a cluster with a large number of processors.
+\end{enumerate}
+
+\end{enumerate}
+
+\subsection{terrainparam namelist}
+\label{terparam}
+This namelist is used by the \verb=terrain= program to know how you want
+to generate the \verb=DOMAIN= file. You can control its work using a number of
+parameters to obtain what you consider the best representation of the
+physical reality. Do not underestimate what you can do at this early stage,
+having a good representation of the surface can lead to valuable results
+later when the model calculates climatic parameters.
+
+{\footnotesize
+\begin{Verbatim}
+ &terrainparam
+ domname  = 'AQWA',           ! Name of the domain/experiment.
+                              ! Controls naming of input files
+ smthbdy = .false.,           ! Smoothing Control flag
+                              !  true -> Perform extra smoothing in boundaries
+ lakedpth    = .false.,       ! If using lakemod (see below), produce from
+                              ! terrain program the domain bathymetry
+ ltexture    = .false.,       ! If using DUST tracers (see below), produce
+                              ! the domain soil texture dataset
+ lsmoist     = .false.,       ! Use Satellite Soil Moisture Dataset for
+                              ! initialization of soil moisture.
+ fudge_lnd   = .false.,       ! Fudging Control flag, for landuse of grid 
+ fudge_lnd_s = .false.,       ! Fudging Control flag, for landuse of subgrid
+ fudge_tex   = .false.,       ! Fudging Control flag, for texture of grid
+ fudge_tex_s = .false.,       ! Fudging Control flag, for texture of subgrid
+ fudge_lak   = .false.,       ! Fudging Control flag, for lake of grid
+ fudge_lak_s = .false.,       ! Fudging Control flag, for lake of subgrid
+ h2opct = 50.,                ! Surface min H2O percent to be considered water
+ h2ohgt = .false.,            ! Allow water points to have hgt greater than 0
+ ismthlev = 1,                ! How many times apply the 121 smoothing
+ dirter = 'input/',           ! Output directory for terrain files
+ inpter = 'globdata/',        ! Input directory for SURFACE dataset
+ moist_filename = 'moist.nc', ! Read initial moisture and snow from this file
+ /
+\end{Verbatim}
+}
+
+The things you need to know here:
+
+\begin{enumerate}
+\item The \verb=domname= will control the output file naming convention, all
+generated files will add this prefix to the old V3 naming convention,
+giving you the capability to recognize different runs. Try to use always
+meaningful names.
+\item You can control the final land-water mask using the h2opct parameter.
+This parameter can be used to have more land points than calculated by
+the simple interpolation engine. Try it with different values to find best
+land shapes. A zero value means use just the interpolation engine, higher
+values will extend into ocean points the land at land-water interface.
+The h2ohgt parameter allows also water points to have elevation greater
+than zero to avoid wall effects on the coasts.
+\item A number of flags control the capability of the \verb=terrain= program
+to modify on request the class type variables in the \verb=DOMAIN= file. You can
+modify on request the landuse, the texture and the lake/land interface.
+Running once the \verb=terrain= program, it will generate for you aside from the
+\verb=DOMAIN= file a series of ASCII files you can modify with any text
+editor. Running the \verb=terrain= program the second time and setting
+a \verb=fudge= flag, will tell the program to overwrite the selected
+variable with the modified value in the ASCII file. This can be useful
+for sensitivity experiments in the BATS surface model or to design
+a scenario experiment.
+\item Some of the land surface types in BATS have been little tested and used
+or are extremely simplified and thus should be used cautiously. Specifically
+the types are: sea ice, bog/marsh, irrigated crop, glacier. If such types are
+present in a domain, the user is advised to carefully check the model behavior
+at such points and eventually substitute these types with others.
+\item The \verb=inpter= directory is expected to contain a \verb=SURFACE=
+directory where the actual netCDF global dataset are stored. The overall
+path is limited to $256$ characters.
+\label{pathnote}
+\item If the netCDF library is compiled with OpenDAP support, an URL
+can be used as a path in the \verb=dirter= and \verb=inpter= variables.
+Note that the $256$ character limit for paths holds in the whole program.
+For \verb=terrain= program you may want to try the following URL: \\
+http://clima-dods.ictp.it/thredds/dodsC
+\end{enumerate}
+
+\subsection{debugparam namelist}
+
+This namelist is used by all RegCM programs to enable/disable some debug printout.
+In the current release this flag is honored only by the model itself. If you
+are not a developer you may find this flags useless.
+
+{\footnotesize
+\begin{Verbatim}
+ &debugparam
+ debug_level = 0, ! Currently value of 2 and 3 control previous DIAG flag
+ dbgfrq = 3,      ! Interval for printout if debug_level >= 3
+ /
+\end{Verbatim}
+}
+
+Just note that with current implementation, the output file syncing is left
+to the netCDF library. If You want to examine step by step the output while
+the model is running, set the \verb=debug_level= at value 3.
+
+\subsection{boundaryparam namelist}
+
+Being a limited area model, in order to be run RegCM4 requires the provision
+of meteorological initial and time dependent lateral boundary conditions,
+typically for wind components, temperature, water vapor and surface pressure.
+These are obtained by interpolation from output from reanalysis of observations
+or global climate model simulations, which thus “drive” the regional climate
+model.
+
+The lateral boundary conditions (LBC) are provided through the so called
+relaxation/diffusion technique which consists of:
+
+\begin{enumerate}
+\item selecting a lateral buffer zone of n grid point width (\verb=nspgx=)
+\item interpolating the driving large scale fields onto the model grid
+\item applying the relaxation + diffusion term
+\begin{equation}
+\frac{\partial \alpha}{\partial t} = F(n)F_1 * (\alpha_{LBC}-\alpha_{mod}) -
+    F(n)F2 * \Delta_2(\alpha_{LBC}-\alpha_{mod})
+\end{equation}
+where $\alpha$ is a prognostic variable (wind components, temperature, water
+vapor, surface pressure). The first term on the rhs is a Newtonian relaxation
+term which brings the model solution ($mod$) towards the LBC field ($LBC$)
+and the second term diffuses the differences between model solution and LBC.
+$F(n)$ is an exponential function given by:
+\begin{equation}
+F(n) = exp\left(\frac{-(n-1)}{anudge(k)}\right)
+\end{equation}
+Where $n$ is the grid point distance from the boundary (varying from $1$ to
+$nspgx$): $n-1$ is the outermost grid point, $n=2$ the adjacent one etc.
+The $anudge$ array determines the strength of the LBC forcing and depends on
+the model level $k$. In practice $F(n)$ is equal to 1 at the outermost grid
+point row and decreases exponentially to $0$ at the internal edge of the buffer
+zone ($nspgd$) at a rate determined by $anudge$. Larger buffer zones and larger
+values of $anudge$ will yield a greater forcing by the LBC.  
+\end{enumerate}
+
+Typically for domain sizes of $~100$ grid points we use a buffer zone width
+of $10-12$ grid points, for large domains this buffer zone can increase to
+values of $15$ or even $20$.
+
+In the model $anudge$ has three increasing values from the lower, to the mid
+and higher troposphere. For example for $nspgx = 10$ we use $anudge$ equals to
+$1, 2, 3$ for the lower, mid and upper troposphere, respectively.
+
+This allows a stronger forcing in the upper troposphere to insure a greater
+consistency of large scale circulations with the forcing LBC while allowing
+more freedom to the model in the lower troposphere where local high resolution
+forcings (e.g. complex topography) are more important.
+
+For nspgx of $15-20$, for example, $anudge$ values could be increased to
+$2,3,4$. As a rule of thumb, the choice of the maximum $anudge$ value should
+follow the conditions:
+
+\begin{equation}
+\frac{(nspgx-1)}{anudge(k)} \ge 3
+\end{equation}
+
+{\footnotesize
+\begin{Verbatim}
+ &boundaryparam
+ nspgx  = 12, ! nspgx-1 represent the number of cross point slices on
+              ! the boundary sponge or relaxation boundary conditions.
+ nspgd  = 12, ! nspgd-1 represent the number of dot point slices on
+              ! the boundary sponge or relaxation boundary conditions.
+ high_nudge   =     3.0, ! Nudge value high range
+ medium_nudge =     2.0, ! Nudge value medium range
+ low_nudge    =     1.0  ! Nudge value low range
+ /
+\end{Verbatim}
+}
+
+\subsection{globdatparam namelist}
+\label{globparam}
+
+This namelist is used by the \verb=sst= and \verb=icbc= ICBC programs. You can
+tell them how to build initial and bondary conditions.
+
+{\footnotesize
+\begin{Verbatim}
+ &globdatparam
+ ibdyfrq =     6,            ! boundary condition interval (hours)
+ ssttyp = 'OI_WK',           ! Type of Sea Surface Temperature used
+                             !  One in: GISST, OISST, OI2ST, OI_WK, OI2WK,
+                             !          FV_A2, FV_B2, EH5A2, EH5B1, EHA1B,
+                             !          EIN75, EIN15, ERSST, ERSKT, CCSST,
+			     !          CA_XX, HA_XX, EC_XX, IP_XX, GF_XX,
+                             !          CN_XX
+ dattyp = 'EIN15',           ! Type of global analysis datasets used
+                             !  One in: ECMWF, ERA40, EIN75, EIN15, EIN25,
+                             !          ERAHI, NNRP1, NNRP2, NRP2W, GFS11,
+                             !          FVGCM, FNEST, EH5A2, EH5B1, EHA1B,
+                             !          CCSMN, ECEXY, CA_XX, HA_XX, EC_XX,
+                             !          IP_XX, GF_XX, CN_XX, MP_XX
+ gdate1 = 1990060100,        ! Start date for ICBC data generation
+ gdate2 = 1990070100,        ! End data for ICBC data generation
+ calendar = 'gregorian',     ! Calendar to use (gregorian, noleap or 360_day)
+ dirglob = 'input/',         ! Path for ICBC produced input files
+ inpglob = 'globdata/',      ! Path for ICBC global input datasets.
+ ensemble_run = .false.,     ! If this is a member of a perturbed ensemble
+                             ! run. Activate random noise added to input
+                   ! Look http://users.ictp.it/~pubregcm/RegCM4/globedat.htm
+                   ! on how to download them.
+ /
+\end{Verbatim}
+}
+
+Things you need to know here:
+
+\begin{enumerate}
+\item The gdate time window to build ICBC must be always greater or equal to
+the time window you plan to run the model in.
+Different GCMs and reanalysis products have different length of the year.
+For example, the reanalysis products employ the real year length (365 days +
+real leap years, i.e. and average length of 365.2422), the CCSM has a length
+of 365 days (no leap year), the HadCM has a length of 360 days (30 day months).
+The RegCM4 length of the year has to be the same as in the forcing fields, and
+this can be set in the variable \verb=dayspy=.
+Please remember to always check the consistency of the length of the year.
+\item Even if listed, not all the input engines are fully tested. Some of them
+need data which have been reformatted by ICTP (they are not in the original
+format with which they are distributed by the institution producing them).
+Some input data are not freely distibutable by ICTP, and you need a special
+agreement with the owner to use them.
+Hopefully the situation is changing, and data exchange is becoming more and more
+the basis for good science in the climatic field.
+\item For notes on path, you can see the above in terrainparam namelist
+description at \ref{pathnote}.
+\end{enumerate}
+
+\subsection{fnestparam namelist}
+
+This namelist is read if the \verb=FNEST= is selected as \verb=dattyp= in
+\verb=globdatparam= namelist (see above in \ref{globparam}), and permits
+the user to specify the output directory of the coarse resolution run
+already completed and the name of the coarse domain, i.e. the \verb=domname=
+namelist parameter used in the \verb=terrainparam= coarse namelist
+(see above in \ref{terparam}).
+
+The nested domain must be contained inside the coarse domain, and possibly
+the nested domain should not overlap the boundary region of the coarse run.
+Those checks are left to the user.
+
+If nothing is specified or namelist not present default is to search for
+a directory \verb=RegCM= inside \verb=inpglob= directory for files without
+a \verb=domname=, i.e. like \verb=ATM.YYYYMMDDHH.nc=.
+
+{\footnotesize
+\begin{Verbatim}
+!
+! Nesting control
+!
+ &fnestparam
+ coarse_outdir = 'globdata/RegCM', ! Coarse domain output dir if FNEST
+ coarse_domname = 'EUROPE',        ! Coarse domain domname
+ /
+\end{Verbatim}
+}
+
+\subsection{perturbparam namelist}
+
+This namelist lets you control to which input field and of what fractional
+level a perturbation is added at ICBC stage on the input fields.
+It is read by the ICBC program if the \verb=ensemble_run= parameter in the
+\verb=globdatparam= namelist is set to \verb=true=.
+
+{\footnotesize
+\begin{Verbatim}
+!
+! Perturbation control for ensembles
+!
+ &perturbparam
+ lperturb_topo = .false.,     ! Add perturbation to surface elevation
+ perturb_frac_topo = 0.001D0, ! Fractional value of the perturbation on topo
+ lperturb_ts = .false.,       ! Add perturbation to surface temeprature
+ perturb_frac_ts = 0.001D0,   ! Fractional value of the perturbation on ts
+ lperturb_ps = .false.,       ! Add perturbation to surface pressure
+ perturb_frac_ps = 0.001D0,   ! Fractional value of the perturbation on ps
+ lperturb_t  = .false.,       ! Add perturbation to temperature
+ perturb_frac_t  = 0.001D0,   ! Fractional value of the perturbation on t
+ lperturb_q  = .false.,       ! Add perturbation to humidity mixing ratio
+ perturb_frac_q  = 0.001D0,   ! Fractional value of the perturbation on q
+ lperturb_u  = .false.,       ! Add perturbation to zonal velocity
+ perturb_frac_u  = 0.001D0,   ! Fractional value of the perturbation on u
+ lperturb_v  = .false.,       ! Add perturbation to meridional velocity
+ perturb_frac_v  = 0.001D0,   ! Fractional value of the perturbation on v
+ /
+\end{Verbatim}
+}
+
+Things you need to know here:
+
+\begin{enumerate}
+\item The \verb=perturb_frac= should not exceed a percent of the field value.
+The algorithm detail of the applied noise can be found in \cite{tao_ense}.
+\end{enumerate}
+
+\subsection{restartparam namelist}
+
+This namelist lets you control the time period the model is currently simulating
+in this particular run. You may want to split longer runs for which you have
+prepared the ICBC's into shorter runs, to schedule HPC resource usage in a more
+collaborative way with other researcher sharing it: the regcm model allows
+restart, so be friendly with other research projects which may not have this
+fortune (unless you are late for publication).
+
+{\footnotesize
+\begin{Verbatim}
+ &restartparam
+ ifrest  = .false. ,   ! If a restart
+ mdate0  = 1990060100, ! Global start (is gdate1, most probably)
+ mdate1  = 1990060100, ! Start date of this run
+ mdate2  = 1990060200, ! End date for this run
+ /
+\end{Verbatim}
+}
+
+Things you need to know here:
+
+\begin{enumerate}
+\item After the simulation starts, on restart NEVER change the \verb=mdate0=
+value. The correct scheme for restart is:
+\begin{itemize}
+\item Set \verb=ifrest= to \verb=.true.=
+\item Set \verb=mdate1= to the value in \verb=mdate2=
+\item Define the new value for \verb=mdate2=
+\end{itemize}
+\item Consider that current RegCM convention is to place midnight of first
+day of month as the last timestep in previous month, except on first model
+output file (\verb=ifrest= = \verb=.false.=). It is for this reason better
+to use as start and end time a month boundary. We usually consider a month
+data file the basic unit of output, each time you cross a month a new output
+file will be created for you.
+\end{enumerate}
+
+\subsection{timeparam namelist}
+
+This namelist contains model internal timesteps, used by the model as basic
+integration timestep and triggers for calling internal parametric schemes.
+
+{\footnotesize
+\begin{Verbatim}
+ &timeparam
+ dt     =   150., ! time step in seconds
+ dtrad  =    30., ! time interval solar radiation calculated (minutes)
+ dtabem =    18., ! time interval absorption-emission calculated (hours)
+ dtsrf  =   600., ! time interval at which land model is called (seconds)
+ /
+\end{Verbatim}
+}
+
+Things you need to know here:
+
+\begin{enumerate}
+\item The dynamical hydrostatical core of RegCM requires a fixed timestep,
+and you need to manually find the correct value which permits not to break
+the Courant–Friedrichs–Lewy condition considering \cite{CFL}. A good rule
+of thumb is to have a \verb=dt= not greater than three times the \verb=ds=
+value in $km$ specified in the \verb=geoparam= namelist at \ref{geoparam}.
+A greater value may lower computing time, but in case of strong advection
+may lead to non accurate computation or even the violation of CFL condition
+and the divergence of the solution.
+\item All the other internal timesteps need to be multiples of the base timestep.
+Note that the units are different, so you need to convert the other timesteps
+in seconds before the check.
+\item In case of strong surface gradients, a low value for the surface timesteps
+may help the model better describe the interaction with the atmosphere and
+obtain a stable solution.
+\item If you hit a non stable condition, the restart capability of the model
+may help find the correct timestep just for a particular period, using a
+different timestep at different times.
+\end{enumerate}
+
+\subsection{outparam namelist}
+
+This namelist controls the model output engine, allowing you to enable/disable
+any of the output file writeout, or to modify the frequency the fields are
+written in the files.
+
+{\footnotesize
+\begin{Verbatim}
+ &outparam
+ ifsave  = .true. ,           ! Create SAV files for restart
+ savfrq  =    48.,            ! Frequency in hours to create them
+ ifatm   = .true. ,           ! Output ATM ?
+ atmfrq  =     6.,            ! Frequency in hours to write to ATM
+ ifrad   = .true. ,           ! Output RAD ?
+ radfrq  =     6.,            ! Frequency in hours to write to RAD
+ ifsts   = .true. ,           ! Output STS (frequence is daily) ?
+ ifsrf   = .true. ,           ! Output SRF ?
+ srffrq  =     3.,            ! Frequency in hours to write to SRF
+ ifsub   = .true. ,           ! Output SUB ?
+ subfrq  =     6.,            ! Frequency in hours to write to SUB
+ iflak   = .true.,            ! Output LAK ?
+ lakfrq  =     6.,            ! Frequency in hours to write to LAK
+ ifchem  = .true.,            ! Output CHE ?
+ ifopt   = .false.,           ! Output OPT ?
+ chemfrq =     6.,            ! Frequency in hours to write to CHE
+ enable_atm_vars = 64*.true., ! Mask to eventually disable variables ATM
+ enable_srf_vars = 30*.true., ! Mask to eventually disable variables SRF
+ enable_rad_vars = 23*.true., ! Mask to eventually disable variables RAD
+ enable_sub_vars = 17*.true., ! Mask to eventually disable variables SUB
+ enable_sts_vars = 17*.true., ! Mask to eventually disable variables STS
+ enable_lak_vars = 18*.true., ! Mask to eventually disable variables LAK
+ enable_opt_vars = 13*.true., ! Mask to eventually disable variables OPT
+ enable_che_vars = 24*.true., ! Mask to eventually disable variables CHE
+ dirout  = './output',        ! Path where all output will be placed
+ lsync   = .false.,           ! If sync of output files at every timestep is
+                              ! requested. Note, it has a performance impact.
+                              ! Enabled by default if debug_level > 2
+ idiag = 0,                   ! Enable tendency diagnostic output in the ATM
+                              ! file. NOTE: output file gets HUGE.
+ do_parallel_netcdf_in  = .false., ! This enables paralell input
+                                   ! Each processors reads its slice in the
+                                   ! input file. Enable ONLY in case of
+                                   ! HUGE input bandwidth,
+ do_parallel_netcdf_out = .false., ! This enables paralell output if the 
+                                   ! hdf5/netcdf libraries support it and
+                                   ! the model is compiled with :
+                                   !    --enable-nc4-parallel
+ /
+\end{Verbatim}
+}
+
+Things you need to know here:
+
+\begin{enumerate}
+\item The surface fields are the mean values in the interval specified by
+the frequency values. The dynamical fields are instead the point value at the
+output time. Refer to the Reference Manual \cite{refman_11} for a detailed
+description of the model output fields.
+\item If the chemistry or lake model are not enabled, the values specified in
+the control flags are not considered. If \verb=nsg= is not greater than one
+in dimparam at \ref{dimparam}, the \verb=ifsub= flag is not considered.
+\item For the output directory, the path variable has a limit of $256$
+characters. This path must be a local path on disk where the user running
+the model has write permissions granted.
+\item The enablevar logical arrays can be used to avoid saving one of the time
+dependent variables in the output file, in the order they are saved in the
+output file itself. Note that geolocation and pressure variables cannot be
+disabled.
+\end{enumerate}
+
+\subsection{physicsparam namelist}
+\label{physicsparam}
+
+This namelist controls the model physics. You have a number of option here,
+and the best way to select the right set is to carefully read the the
+Reference Manual \cite{refman_11}. We are for the purposes of this User Guide
+not going in detail in here, except in saying that probably you will need
+to run some experiments especially with different cumulus convection
+schemes before finding out the best model setting.
+Although the mixed convection scheme (Grell over land and Emanuel over ocean)
+seems to provide an overall better performance, our experience is that there
+is no scheme that works best everywhere, therefore we advice to always do some
+sensitivity experiments to select the best scheme for your application.
+
+{\footnotesize
+\begin{Verbatim}
+ &physicsparam
+ iboudy  =          5,  ! Lateral Boundary conditions scheme
+                        !   0 => Fixed
+                        !   1 => Relaxation, linear technique.
+                        !   2 => Time-dependent
+                        !   3 => Time and inflow/outflow dependent.
+                        !   4 => Sponge (Perkey & Kreitzberg, MWR 1976)
+                        !   5 => Relaxation, exponential technique.
+ isladvec =         0,  ! Semilagrangian advection scheme for tracers and
+                        ! humidity
+                        !   0 => Disabled
+                        !   1 => Enable Semi Lagrangian Scheme
+ ibltyp  =          1,  ! Boundary layer scheme
+                        !   0 => Frictionless
+                        !   1 => Holtslag PBL (Holtslag, 1990)
+                        !   2 => UW PBL (Bretherton and McCaa, 2004)
+ icup_lnd =          4, ! Cumulus convection scheme Over Land
+ icup_ocn =          4, ! Cumulus convection scheme Over Icean
+                        !   1 => Kuo
+                        !   2 => Grell
+                        !   3 => Betts-Miller (1986) DOES NOT WORK !!!
+                        !   4 => Emanuel (1991)
+                        !   5 => Tiedtke (1996)
+                        !   6 => Kain-Fritsch (1990), Kain (2004)
+   igcc  =          1,  ! Grell Scheme Cumulus closure scheme
+                        !   1 => Arakawa & Schubert (1974)
+                        !   2 => Fritsch & Chappell (1980)
+ ipptls  =          1,  ! Moisture scheme
+                        !   1 => Explicit moisture (SUBEX; Pal et al 2000)
+                        !   2 => Explicit moisture Nogherotto/Tompkins
+ iocnflx =          2,  ! Ocean Flux scheme
+                        !   1 => Use BATS1e Monin-Obukhov
+                        !   2 => Zeng et al (1998)
+                        !   3 => Coare bulk flux algorithm (snowice),
+                        !        only activated with coupling
+   iocnrough =      1,  ! Zeng Ocean model roughness formula to use.
+                        !   1 => (0.0065*ustar*ustar)/egrav
+                        !   2 => (0.013*ustar*ustar)/egrav + 0.11*visa/ustar
+ ipgf    =          0,  ! Pressure gradient force scheme
+                        !   0 => Use full fields
+                        !   1 => Hydrostatic deduction with pert. temperature
+ iemiss  =          0,  ! Use computed long wave emissivity
+ lakemod =          0,  ! Use lake model
+ ichem   =          1,  ! Use active aerosol chemical model
+ scenario =      'A1B', ! IPCC Scenario to use in A1B,A2,B1,B2
+                        ! RCP Scenarios in RPC2.6,RCP4.5,RCP6,RCP8.5
+ idcsst   =          0, ! Use diurnal cycle sst scheme
+ iseaice  =          0, ! Model seaice effects
+ idesseas =          0, ! Model desert seasonal albedo variability
+ iconvlwp =          0, ! Use convective liquid water path as the large-scale
+                        ! liquid water path
+ irrtm    =          0, ! Use RRTM radiation scheme instead of CCSM
+ iclimao3 =          0, ! Use O3 climatic dataset from SPARC CMIP5
+ isolconst =         1, ! Use a constant 1367 W/m^2 instead of the prescribed
+                        ! TSI recommended CMIP5 solar forcing data.
+ islab_ocean =       0, ! Activate the SLAB ocean model
+ itweak =            0, ! Enable tweak scenario
+ \
+\end{Verbatim}
+}
+
+\subsection{subexparam namelist}
+
+This namelist controls the SUBEX moisture scheme. Please consider carefully
+reporting in your work the tuning you perform on this parameters.
+The parameters below are the ones currently used at ICTP.
+
+{\footnotesize
+\begin{Verbatim}
+ &subexparam
+ ncld      =          1, ! # of bottom model levels with no clouds
+ qck1land  =   .250E-03, ! Autoconversion Rate for Land
+ qck1oce   =   .250E-03, ! Autoconversion Rate for Ocean
+ gulland   =        0.4, ! Fract of Gultepe eqn (qcth) when precip occurs
+ guloce    =        0.4, ! Fract of Gultepe eqn (qcth) for ocean
+ rhmax     =       1.01, ! RH at whicn FCC = 1.0
+ rh0oce    =       0.90, ! Relative humidity threshold for ocean
+ rh0land   =       0.80, ! Relative humidity threshold for land
+ tc0       =      238.0, ! Below this temperature, rh0 begins to approach unity
+ cevaplnd  =   .100E-02, ! Raindrop evap rate coef [[(kg m-2 s-1)-1/2]/s]
+ cevapoce  =   .100E-02, ! Raindrop evap rate coef [[(kg m-2 s-1)-1/2]/s]
+ caccrlnd  =      3.000, ! Raindrop accretion rate [m3/kg/s]
+ caccroce  =      3.000, ! Raindrop accretion rate [m3/kg/s]
+ cllwcv    =     0.3E-3, ! Cloud liquid water content for convective precip.
+ clfrcvmax =       1.00, ! Max cloud fractional cover for convective precip.
+ cftotmax  =       0.75, ! Max total cover cloud fraction for radiation
+ /
+\end{Verbatim}
+}
+
+We found that RegCM4 is especially sensitive to:
+
+\begin{enumerate}
+\item \verb=cevap= : increasing cevap will generally decrease precipitation
+\item \verb=gulland=, \verb=guloce= : increase of guland/guloce will generally
+lead to reduce precipitation
+\end{enumerate}
+
+\subsection{microparam namelist}
+
+This namelist controls the new microphysics scheme.
+
+{\footnotesize
+\begin{Verbatim}
+ &microparam
+  budget_compute = .false.,  ! Verify enthalpy and moisture conservation
+  nssopt = 1,                ! Supersaturation Computation
+                             ! 0 => No scheme
+                             ! 1 => Tompkins
+                             ! 2 => Lohmann and Karcher
+                             ! 3 => Gierens
+  kautoconv = 4,             !  Choose the autoconversion paramaterization
+                             ! => 1 Klein & Pincus (2000)
+                             ! => 2 Khairoutdinov and Kogan (2000)
+                             ! => 3 Kessler (1969)
+                             ! => 4 Sundqvist
+  ksemi = 1.0D0,             ! Implicit/Explicit control
+                             ! NOT ACTIVATED YET - IT DOES NOT WORK!
+                             ! ksemi == 0 => scheme is fully explicit
+                             ! ksemi == 1 => scheme is fully implicit
+                             ! 0<ksemi<1  => scheme is semi-implicit
+  vqxr = 4.0D0,              ! Rain fall speed (default is 4 m/s)
+  vqxi = 0.15D0,             ! Ice fall speed (default is 0.15 m/s)
+  vqxs = 1.0D0,              ! Snow fall speed (default is 1 m/s)
+  zauto_rate_khair = 0.355D0,! Autoconversion coefficient for kautoconv=2
+  zauto_rate_kessl = 1.D-3,  ! Autoconversion coefficient for kautoconv=3
+  zauto_rate_klepi = 0.5D-3, ! Autoconversion coefficient for kautoconv=1
+  rkconv = 1.666D-4,         ! Autoconversion coefficient for kautoconv=4
+  rcovpmin = 0.1D0,          ! Minimum precipitation coverage
+  rpecons = 5.547D-5,        ! Evaporation constant Kessler
+ /
+\end{Verbatim}
+}
+
+\subsection{grellparam, emanparam, tiedtkeparam and kfparam namelists}
+
+You are allowed here to tune the convection scheme selected above in
+\ref{physicsparam} with the \verb=icup_lnd= or \verb=icup_ocn= number if
+selected number is $2, 4, 5$.
+
+{\footnotesize
+\begin{Verbatim}
+ &grellparam
+ shrmin = 0.25,       ! Minimum Shear effect on precip eff.
+ shrmax = 0.50,       ! Maximum Shear effect on precip eff.
+ edtmin = 0.25,       ! Minimum Precipitation Efficiency
+ edtmax = 0.50,       ! Maximum Precipitation Efficiency
+ edtmino = 0.25,      ! Minimum Precipitation Efficiency (o var)
+ edtmaxo = 0.50,      ! Maximum Precipitation Efficiency (o var)
+ edtminx = 0.25,      ! Minimum Precipitation Efficiency (x var)
+ edtmaxx = 0.50,      ! Maximum Precipitation Efficiency (x var)
+ shrmin_ocn = 0.25,   ! Minimum Shear effect on precip eff. OCEAN points
+ shrmax_ocn = 0.50,   ! Maximum Shear effect on precip eff.
+ edtmin_ocn = 0.25,   ! Minimum Precipitation Efficiency
+ edtmax_ocn = 0.50,   ! Maximum Precipitation Efficiency
+ edtmino_ocn = 0.25,  ! Minimum Precipitation Efficiency (o var)
+ edtmaxo_ocn = 0.50,  ! Maximum Precipitation Efficiency (o var)
+ edtminx_ocn = 0.25,  ! Minimum Precipitation Efficiency (x var)
+ edtmaxx_ocn = 0.50,  ! Maximum Precipitation Efficiency (x var)
+ pbcmax = 150.0,      ! Max depth (mb) of stable layer b/twn LCL & LFC
+ mincld = 150.0,      ! Min cloud depth (mb).
+ htmin = -250.0,      ! Min convective heating
+ htmax = 500.0,       ! Max convective heating
+ skbmax = 0.4,        ! Max cloud base height in sigma
+ dtauc = 30.0,        ! Fritsch & Chappell (1980) ABE Removal Timescale (min)
+ /
+
+ &emanparam
+ minsig = 0.95,       ! Lowest sigma level from which convection can originate
+ elcrit_ocn = 0.0011, ! Autoconversion threshold water content (g/g) over ocean
+ elcrit_lnd = 0.0011, ! Autoconversion threshold water content (g/g) over land
+ tlcrit = -55.0,      ! Below tlcrit auto-conversion threshold is zero
+ entp = 1.5,          ! Coefficient of mixing in the entrainment formulation
+ sigd = 0.05,         ! Fractional area covered by unsaturated dndraft
+ sigs = 0.12,         ! Fraction of precipitation falling outside of cloud
+ omtrain = 50.0,      ! Fall speed of rain (Pa/s)
+ omtsnow = 5.5,       ! Fall speed of snow (Pa/s)
+ coeffr = 1.0,        ! Coefficient governing the rate of rain evaporation
+ coeffs = 0.8,        ! Coefficient governing the rate of snow evaporation
+ cu = 0.7,            ! Coefficient governing convective momentum transport
+ betae = 10.0,        ! Controls downdraft velocity scale
+ dtmax = 0.9,         ! Max negative parcel temperature perturbation below LFC
+ alphae = 0.2,        ! Controls the approach rate to quasi-equilibrium
+ damp = 0.1,          ! Controls the approach rate to quasi-equilibrium
+ epmax_ocn = 0.999,   ! Maximum precipitation efficiency (ocean)
+ epmax_lnd = 0.999,   ! Maximum precipitation efficiency (land)
+ /
+
+ &tiedtkeparam
+ iconv = 4,           ! Actual used scheme.
+ entrmax = 1.75D-3,   ! Max entrainment iconv=[1,2,3]
+ entrdd  = 3.0D-4,    ! Entrainment rate for cumulus downdrafts
+ entrpen = 1.75D-3,   ! Entrainment rate for penetrative convection
+ entrscv = 3.0D-4,    ! Entrainment rate for shallow convection iconv=[1,2,3]
+ entrmid = 1.0D-4,    ! Entrainment rate for midlevel convection iconv=[1,2,3]
+ cprcon = 1.0D-4,     ! Coefficient for determining conversion iconv=[1,2,3]
+ detrpen = 0.75D-4,   ! Detrainment rate for penetrative convection iconv=4
+ entshalp = 2.0D0,    ! shallow entrainment factor for entrorg iconv=4
+ rcuc_lnd = 0.05D0,   ! Convective cloud cover for rain evporation iconv=4
+ rcuc_ocn = 0.05D0,   ! Convective cloud cover for rain evporation iconv=4
+ rcpec_lnd = 5.55D-5, ! Coefficient for rain evaporation below cloud iconv=4
+ rcpec_ocn = 5.55D-5, ! Coefficient for rain evaporation below cloud iconv=4
+ rhebc_lnd = 0.7D0,   ! Critical rh below cloud for evaporation iconv=4
+ rhebc_ocn = 0.9D0,   ! Critical rh below cloud for evaporation iconv=4
+ rprc_lnd = 1.4D-3,   ! conversion coefficient from cloud water iconv=4
+ rprc_ocn = 1.4D-3,   ! conversion coefficient from cloud water iconv=4
+ /
+
+ &kfparam
+ kf_trigger = 3,      ! Trigger mechanism. Allowed values 1 and 3
+ kf_entrate = 0.03D0, ! Entrainment rate
+ /
+\end{Verbatim}
+}
+
+Things you need to know here:
+
+\begin{enumerate}
+\item In case of the mixed schemes $96, 97, 98, 99$, both the selected schemes
+configuration namelist are read in.
+Note in this case for the schemes only the relevant (Ocean or Land) control
+values are used.
+\item Minimum and maximum values of the fraction of reevaporated water in the
+downdraft for the Grell scheme is essentially a measure of the precipitation
+efficiency: increasing their value generally decrease convective precipitation.
+\item Again, read carefully the Reference Manual before attempting any tuning,
+and report in any work modification of this parameters.
+\end{enumerate}
+
+\subsection{holtslagparam namelist}
+
+You are allowed here to tune the Holtslag PBL scheme selected above in
+\ref{physicsparam} with the \verb=ibltyp= number if selected number is
+$1$. 
+
+{\footnotesize
+\begin{Verbatim}
+ &holtslagparam
+ ricr_ocn = 0.25D0,  ! Critical Richardson Number over Ocean
+ ricr_lnd = 0.25D0,  ! Critical Richardson Number over Land
+ zhnew_fac = 0.25D0, ! Multiplicative factor for zzhnew in holtpbl
+ /
+\end{Verbatim}
+}
+
+\subsection{uwparam namelist}
+
+You are allowed here to tune the UW PBL scheme selected above in
+\ref{physicsparam} with the \verb=ibltyp= number if selected number is
+$2$. 
+
+{\footnotesize
+\begin{Verbatim}
+ &uwparam
+ iuwvadv = 0,     ! 0=standard T/QV/QC advection, 1=GB01-style advection
+                  ! 1 is ideal for MSc simulation, but may have stability issues
+ atwo = 15.0D0,   ! Efficiency of enhancement of entrainment by cloud evap.
+                  !  see Grenier and Bretherton (2001) Mon. Wea. Rev.
+                  !  and Bretherton and Park (2009) J. Clim.
+ rstbl = 1.5D0,   ! Scaling parameter for stable boundary layer eddy length
+                  ! scale.  Higher values mean stronger mixing in stable 
+                  ! conditions
+ czero = 5.869D0, ! Czero constant in UW PBL (eqn 44a and pgs 856-857)
+ /
+\end{Verbatim}
+}
+
+\subsection{slabocparam namelist}
+
+Here you define parameter and stage fot the Ocean q-flux adjusted mixed layer
+model.
+
+{\footnotesize
+\begin{Verbatim}
+ &slabocparam
+ do_qflux_adj  = .false.,  ! Activate SLAB Ocean model surface fluxes adjust
+                           ! from an already created climatology
+ do_restore_sst = .true.,  ! Create during the run the SLAB Ocean model surface
+                           ! fluxes climatology to be used in a subsequent run
+ sst_restore_timescale = 5.0D0,  ! Time interval in days in building the
+                                 ! q-flux adjustment
+ mixed_layer_depth     = 50.0D0, ! Depth in meters of the Ocean mixed layer.
+ /
+\end{Verbatim}
+}
+
+\subsection{tweakparam namelist}
+
+This namelist controls the tweaking of the model to obtain custom scenarioes,
+Is enabled if itweak is $1$ in \ref{physicsparam}.
+
+{\footnotesize
+\begin{Verbatim}
+&tweakparam
+ itweak_sst = 0,              ! Enable adding sst_tweak to input TS
+ itweak_temperature = 0,      ! Enable adding temperature_tweak to input T
+ itweak_solar_irradiance = 0, ! Add solar_tweak to solar constant
+ itweak_greenhouse_gases = 0, ! Multiply gas_tweak_factors to GG concentrations
+ sst_tweak = 0.0D0,           ! In K
+ temperature_tweak = 0.0D0,   ! In K
+ solar_tweak = 0.0D0,         ! In W m-2 (1367.0 is default solar)
+ gas_tweak_factors = 1.0D0, 1.0D0 , 1.0D0 , 1.0D0 , 1.0D0,
+ !                   CO2    CH4     N2O     CFC11   CFC12
+\end{Verbatim}
+}
+
+
+\subsection{rrtmparam namelist}
+
+You are allowed here to tune the RRTM radiative scheme selected above in
+\ref{physicsparam} with the \verb=irrtm= number if selected number is $1$. 
+
+{\footnotesize
+\begin{Verbatim}
+ &rrtmparam
+ inflgsw  = 2, ! 0 = use the optical properties calculated in prep_dat_rrtm
+               !     (same as standard radiation)
+               ! 2 = use RRTM option to calculate cloud optical properties
+               !     from water path and cloud drop radius
+ iceflgsw = 3, ! Flag for ice particle specification
+               !   0 => ice effective radius, r_ec, (Ebert and Curry, 1992),
+               !        r_ec must be >= 10.0 microns
+               !   1 => ice effective radius, r_ec, (Ebert and Curry, 1992),
+               !        r_ec range is limited to 13.0 to 130.0 microns
+               !   2 => ice effective radius, r_k, (Key, Streamer Ref. Manual,
+               !        1996), r_k range is limited to 5.0 to 131.0 microns
+               !   3 => generalized effective size, dge, (Fu, 1996),
+               !        dge range is limited to 5.0 to 140.0 microns
+               !        [dge = 1.0315 * r_ec]
+ liqflgsw = 1, ! Flag for liquid droplet specification
+               !   0 => Compute the optical depths due to water clouds in ATM
+               !        (currently not supported)
+               !   1 => The water droplet effective radius (microns) is input
+               !        and the optical depths due to water clouds are computed
+               !        as in Hu and Stamnes, J., Clim., 6, 728-742, (1993).
+ inflglw  = 2, ! Flag for cloud optical properties as above but for LW
+ iceflglw = 3, ! Flag for ice particle specification as above but for LW
+ liqflglw = 1, ! Flag for liquid droplet specification as above but for LW
+ idrv = 0,     ! Flag for calculation of dFdT, the change in upward flux as
+               ! a function of surface temperature [0=off, 1=on]
+ icld  = 1,    ! Cloud Overlap hypothesis
+ irng = 1,     ! mersenne twister random generator for McICA COH
+ /
+\end{Verbatim}
+}
+
+\subsection{chemparam namelist}
+
+This namelist controls the chemistry and aerosol options in the RegCM model.
+
+{\footnotesize
+\begin{Verbatim}
+ &chemparam
+ chemsimtype = 'CBMZ    ', ! Which chemical tracers to be activated.
+                           ! One in :
+                           !   DUST   : Activate 4 dust bins scheme
+                           !   SSLT   : Activate 2 bins Sea salt scheme
+                           !   DUSS   : Activate DUST +SSLT
+                           !   CARB   : Activate 4 species black/anthropic
+                           !            carbon simulations
+                           !   SULF   : Activate SO2 and SO4 tracers
+                           !   SUCA   : Activate both SUKF and CARB
+                           !   AERO   : Activate all DUST, SSLT, CARB and SULF
+                           !   CBMZ   : Activate gas phase and sulfate
+                           !   DCCB   : Activate CBMZ +DUST +CARB
+                           !   POLLEN : Activate POLLEN transport scheme
+ ichsolver = 1,  ! Activate the gas phase chemical solver CBMZ
+ ichsursrc = 1,  ! Enable the emissions fluxes.
+ ichdrdepo = 1,  ! 1 = enable tracer surface dry deposition. For dust,
+                 !     it is calculated by a size settling and dry
+                 !     deposition scheme. For other aerosol,a dry
+                 !     deposition velocity is simply prescribed further.
+ ichebdy = 1,    ! Enable reading of chemical boundary conditions, otherwise put 0 in boundary conditions.
+ ichcumtra = 1,  ! 1 = enable tracer convective transport.
+ ichremlsc = 1,  ! 1 = enable tracer rainout     
+ ichremcvc = 1,  ! 1 = enable tracer washout 
+ ichdustemd = 1, ! Choice for parametrisation of dust emission size distribution
+                 ! 1 = use the standard scheme (Alfaro et al., Zakey et al.)
+                 ! 2 = use a revised soil granulometry ref + 
+                 !     Kok et al emission size distribution : Menut et al.,2012; + Kok et al., 2011
+ ichdiag = 0,    ! 1 = enable writing of additional tracer tendency diagnostics in the output
+ idirect   = 1,  ! CHoice to enable or not aerosol feedbacks on radiation and
+                 ! dynamics (aerosol direct and semi direct effects): possible choice 1 or 2:
+                 ! 1 = no coupling to dynamic and thermodynamic. However
+                 !     the clear sky surface and top of atmosphere 
+                 !     aerosol radiative forcings are diagnosed.
+                 ! 2 = allows aerosol feedbacks on radiative,
+                 !     thermodynamic and dynamic fields.
+ iindirect = 0,  ! Enable sulfate first indirect effect in radiation scheme based on Qian et al., 2001 
+ rdstemfac = 1.0,! Dust emission adjustment factor ( soil erodibility) : linearly reduce or increase the dust flux
+ /
+\end{Verbatim}
+}
+
+The \verb=chemsimtype= parameter select one in a number of fixed sets which
+define the nature and number of chemical species and/or transported aerosols,
+together with wich relevant scheme is to be used in the simulation.
+The implemented possible simulation types for the aerosol/chemistry options
+are:
+
+\begin{enumerate}
+  \item \verb=DUST= : Activate 4 dust bins scheme, with on line emission,
+    transport and removal.
+  \item \verb=SSLT= : Activate 2 sea salt bins scheme, with on line emission,
+    transport and removal.
+  \item \verb=DUSS= : Activate Dust and seasalt scheme, 6 tracers.
+  \item \verb=CARB= : Activate 4 species organic and black carbon in both
+    hydrophobic and hydrophilic aerosol scheme, with on line emission,
+    transport and removal.
+  \item \verb=SULF= : Activate SO2 and SO4 tracers with simple sulfate
+    oxidation from oxidant climatology, with on line emission,
+    transport and removal.
+  \item \verb=SUCA= : Activate both SULF and CARB.
+  \item \verb=AERO= : Activate all DUST, SSLT, CARB and SULF
+  \item \verb=CBMZ= : Activate CBMZ gas phase only option : 37 tracer are
+    considered here.
+  \item \verb=DCCB= : Activate CBMZ +DUST +CARB 
+         + sulfate-nitrate-ammonium aerosol calculated with the ISORROPIA 
+         gas-aerosol thermodynamical scheme: 50 tracers are considered here.
+\end{enumerate}
+
+The more tracer are used, the heavier computationally are the simulations and
+the outputs. The chemistry outputs consist of one netCDF file per tracer,
+named explicitely and containing concentration fields + different diagnostics,
+and one netCDF file giving the optical properties of the total aerosol mixture
+i.e. aerosol optical depth and radiative forcing. For a big domain, this can
+require a huge amount of disk space to store the model results.
+
+We will now detail the steps required to run a chemistry/aerosol simulation with
+the RegCM model.
+
+\subsubsection{Pre Processing}
+
+We need to perform a couple of operations in the pre-processing stage to prepare
+input datasets for an aerosol/chemistry simulation.
+
+\begin{enumerate}
+  \item In the case of a \verb=DUST=, \verb=AERO= or \verb=DCCB= simulation,
+    we need the model to prepare soil type dataset to be used for dust emission
+    calculation at the \verb=terrain= program stage. The \verb=ltexture=
+    parameter in the \verb=terrainparam= namelist (see above in \ref{terparam})
+    should be set to \verb=.true.=.
+  \item After having prepared the static and boundary condition data with the
+    \verb=icbc= program for the atmosphere, we need also to define chemical
+    emissions and chemical boundary conditions.
+\end{enumerate}
+
+The data needed for this second task come from different sources, both
+measurements data or GCM model with a chemistry parametrization active.
+
+\begin{enumerate}
+  \item Emission dataset. The pre processor can manage CMIP5 RCP and IASA  anthropogenic
+    emissions for present day and future emission. For this, the global RCP
+    emission dataset have first been processed by ICTP
+    to match the species considered in the chemical solver CBMZ, and to
+    aggregate different sector of emissions that are present in the RCP fields
+    (e.g. CO emission from biomass burning + fossil fuel + ship + $\ldots$).
+    The resulting global files, as well as grid informations are publicly
+    available on ICTP site :
+    \begin{center}
+    \verb=http://clima-dods.ictp.it/data/d8/cordex/RCP_EMGLOB_PROCESSED=
+    \end{center}
+    
+  \item Chemical boundary conditions for important tracersare available through
+    ICTP. We use monthly boundary condition coming from global simulations
+    (CAM + EC-EARTH) for aerosols, following different RCP scenarios
+    (HIST + future).
+    For gas phase species, we now have 6 hourly chemical boundary 
+    conditions issued from the MOZART CTM. 
+    Alternatively, we can use  a climatology representative
+    of monthly average concentrations over the period 2000-2007 coming from
+    the MOZART CTM. 
+    The oxidant fields, used in the simple
+    sulfate scheme, is also a climatology coming from MOZART CTM.
+    The data are available on ICTP site.
+\end{enumerate}
+
+The steps to prepare the chemistry boundary conditions data are the following:
+
+\begin{enumerate}
+  \item In case of a chemistry simulation type (\verb=CBMZ= or \verb=DCCB=), the
+    global emission files must first be interpolate to the RegCM model grid
+    using the following procedure:
+    \begin{itemize}
+      \item Create the RegCM model grid description file to be used by
+        \verb=cdo= to calculate weghts for a conservative remapping
+        interpolation:
+        \begin{Verbatim}
+        $> cd $REGCM_RUN
+        $> ./bin/emcre_grid test_001.in
+        \end{Verbatim}
+      \item Interpolate the global data on the RegCM grid with the interpolation
+        script:
+        \begin{Verbatim}
+        $> cd $REGCM_RUN
+        $> ./bin/interp_emissions test_001.in
+        \end{Verbatim}
+    \end{itemize}
+    The \verb=cdo= program installation is mandatory in this case to perform
+    this step. The interpolation is mass conservative and is consistent for
+    any ratio of model resolution/global emission resolution.
+    Note the programs and script uses the same root path of \verb=terrain= and
+    \verb=icbc= programs for input and data directory. By default, we expect
+    the global emission to be at the same level than e.g. EIN15 in your data
+    path layout.
+    This results in a file named \verb=*_CHEMISS.nc= of monthly emission for
+    the whole RCP period. You don’t need to reprocess the file if you change
+    the date of your simulation, as long as you are in the RCP temporal windows
+    (for now, Historical from 1990-2010) .
+    Which scenario to use is controlled by the \verb=scenario= variable in the
+    \verb=physicsparam= parameter namelist as above in \ref{physicsparam}
+  \item In function of the value of the \verb=chemsimtype= parameter, the
+    relevant boundary conditions will be produced on the RegCM domain by
+    running :
+        \begin{Verbatim}
+        $> cd $REGCM_RUN
+        $> ./bin/chem_icbc test_001.in
+        \end{Verbatim}
+    That will result in 6 hourly chemical boundary conditions in your input
+    directory (\verb=*_CHBC*.nc= and/or \verb=*_AEBC*.nc=).
+\end{enumerate}
+
+\subsubsection{Run time parameters}
+The other \verb=chemparam= namelist parameters, let you control run time behaviour
+of the model chemistry and aerosol schemes.
+
+\begin{enumerate}
+  \item \verb=ichsolver= : relevant for gas-phase chemistry options, activate
+    the chemical solver CBMZ. If different from $1$, there is no chemical
+    reactions and the tracer are only emitted, transported and removed.
+  \item \verb=ichsursrc= : if set different from $1$, the emission term is
+    suppressed and only boundary conditions are generating tracer in the domain.
+  \item \verb=ichdrdepo= : if set different from $1$, the dry deposition and
+    sedimentation of tracers is disabled for chemistry species.
+  \item \verb=ichremlsc= : if set different from $1$,  rainout of chemical
+    species is disabled.
+  \item \verb=ichremcvc= : if set different from $1$,  washout of chemical
+    species is disabled.
+  \item \verb=ichcumtra= : if set different form $1$, the convective transport
+    of tracers is disabled.
+  \item= \verb=ichdiag= : if set to $1$, the writing of additional diagnostics
+    in the chemistry output is enabled. Particularly, all the 3D tendency terms
+    (advection, turbulence, convection, boundary condition, chemistry, removal,
+    etc.) of the tracer equation are outputted at the frequency \verb=ichfreq=.
+    This is usefull for budget and sensitivity studies, as well as debugging.
+    This potentially can generate HUGE files.
+  \item \verb=idirect= : Enable aerosol feedbacks on radiation.
+    \begin{itemize}
+      \item if equal to $1$, only aerosol radiative forcing is calculated and
+        outputted but there is NO aerosol radiative feedback on climate.
+        This can be viewed as a control run option.
+      \item if equal to $2$, there is a feedback of aerosol radiative forcing
+        on climate fields, via perturbation of the temperature tendency.
+        This can be view as the perturbed run option.
+    \end{itemize}
+  \item \verb=ichdustemd= : Choice for parametrisation of dust emission size
+    distribution:
+    \begin{itemize}
+      \item if set to $1$, the standard scheme s used (Alfaro et al.,
+        Zakey et al., 2006)
+      \item if set to $2$, the revised soil granulometry + Kok et al., 2011
+        emission size distribution is used.
+    \end{itemize}
+  \item \verb=rdstemfac= : Scaling factor (erodibility) for tuning  \verb=DUST= emission flux
+\end{enumerate}
+
+\subsubsection{Sparse notes}
+
+\begin{enumerate}
+  \item Outputs are in netCDF, so process with your favorite software.
+  \item The flux and tendency variables, as well as radiative forcings,
+    are accumulated and averaged between 2 output time steps (like
+    precipitations). The concentration, burden and aerosol optical depth
+    are instantaneous.
+  \item The outputs size can be huge, especially for full chemistry and
+    diagnostic options. In the future, we might have the choice of outputting
+    selected variables only.
+\end{enumerate}
+
+Not every possible dynamical configuration has been tested for the chemistry
+option, so bugs might appear: please report!
+CLM enables to calculate on line biogenic volatile hydrocarbon emissions, as
+well as chemical deposition that can be used in RegCM. There are some flags to
+activate when compiling CLM, we will update the documentation when fully tested.
+
+The Tiedke and Emmanuel schemes, when activated, offer a more detailed
+treatment of convective transport than the simple mixing hypothesis used with
+other schemes.
+The UW planetary boundary layer option integrate directly the emission and
+deposition flux terms as part of the calculation of trurbulent tracer tendency.
+
+\section{The CLM options}
+\label{clm}
+
+We will now discuss from the user point of view how to use the model
+setup which need to be activated at configure stage.
+
+The \verb=CLM= option if activated allows the user to run a simulation using
+the CLM surface model instead of the default BATS1e model. We will not here go
+in deep in the difference between the two models, read the Reference Manual
+for this.
+The executable of the model is different in the case of the \verb=CLM=, and is
+named \verb=regcmMPICLM=.
+Note that in the CLM case only the MPI enabled compilation is supported (no
+serial), and no subgridding is possible (\verb=nsg= is always $1$).
+
+\subsubsection{Enable}
+
+At configure stage (see \ref{modconf}), the option is to be enabled with the
+right command line argument to the configure script
+
+\begin{Verbatim}
+  --enable-clm   Supply this option if you plan on using CLM option.
+\end{Verbatim}
+
+This will enable a preprocessing flag, and build a different model executable.
+Note that no modifications are needed for any other part of the model, but
+this triggers the building of another pre-processing program, \verb=clm2rcm=.
+
+\subsubsection{Prepare and run}
+\label{clmrun}
+
+The \verb=CLM= configuration requires a separate namelist in the namelist input
+file.
+
+{\footnotesize
+\begin{Verbatim}
+ &clmparam
+ dirclm = 'input/', ! CLM path to Input data produced by clm2rcm. If 
+                    ! relative, It should be how to reach the Input dir
+                    ! from the Run dir.
+ clmfrq =  12.,     ! Frequency for CLM own output write
+ imask  =   1,      ! For CLM, Type of land surface parameterization
+                    !   1 => using DOMAIN.INFO for landmask (same as BATS)
+                    !   2 => using mksrf_navyoro file landfraction for
+                    !        landmask and perform a weighted average over
+                    !        ocean/land gridcells; for example:
+                    ! tgb = tgb_ocean*(1-landfraction)+tgb_land*landfraction
+ /
+\end{Verbatim}
+}
+
+Things you need to know here:
+
+\begin{enumerate}
+\item The \verb=inpter= path defined in \verb=terrainparam= namelist
+described in \ref{terparam} is used also by the \verb=clm2rcm= program.
+See at \ref{clmdata} how to obtain needed datasets.
+\item The file \verb=pft-physiology.c070207= should be manually copied in the
+\verb=dirclm= directory before running the model.
+\item The clmfrq is relative to the output produced by the \verb=CLM= model
+itself, and does not control the RegCM model output. To know the \verb=CLM=
+output file content, refer to CLM 3.5 documentation.
+\item The \verb'imask = 2' option cannot be used with the \verb'icup_lnd' or
+\verb'icup_ocn' cumulus convection schemes $2$, which rely on the BATS1e
+landmask.
+\end{enumerate}
+
+In the case of \verb=CLM= run, the user needs to run, after the \verb=terrain=
+program, the \verb=clm2rcm= program, and copy the \verb=pft-physiology.c070207=
+in the input directory:
+
+\begin{Verbatim}
+$> cd $REGCM_RUN
+$> ./bin/terrain regcm.in
+$> ./bin/clm2rcm regcm.in
+$> cp $REGCM_GLOBEDAT/CLM/pft-physiology.c070207 input/
+\end{Verbatim}
+
+The \verb=clm2rcm= program interpolates global land characteristics datasets
+to the RegCM projected grid. The content of the \verb=pft-physiology.c070207=
+file are described in the \verb=pft-physiology.c070207.readme= file.
+All the other pre-processing steps are just equal to the one detailed in
+chapter \ref{tutorial}. To run the \verb=CLM= option in the RegCM model, just
+substitute the executable name:
+
+\begin{Verbatim}
+$> mpirun -np 2 ./bin/regcmMPICLM regcm.in
+\end{Verbatim}
+
+Note that the \verb=CLM= land model is much heavier than the BATS1e model, and
+computing time increases.
+
+\section{The CLM 4.5 options}
+\label{clm45}
+
+We will now discuss from the user point of view how to use the model
+setup which need to be activated at configure stage.
+
+The \verb=CLM 4.5= option if activated allows the user to run a simulation using
+the CLM version 4.5 surface model instead of the default BATS1e model.
+We will not here go in deep in the difference between the two models, read
+the Reference Manual for this.
+The executable of the model is different in the case of the \verb=CLM 4.5=,
+and is named \verb=regcmMPICLM45=.
+Note that in the \verb=CLM 4.5= case only the MPI enabled compilation is
+supported (no serial).
+
+\subsubsection{Enable}
+
+At configure stage (see \ref{modconf}), the option is to be enabled with the
+right command line argument to the configure script
+
+\begin{Verbatim}
+  --enable-clm45  Supply this option if you plan on using CLM45 option.
+\end{Verbatim}
+
+This will enable a preprocessing flag, and build a different model executable.
+Note that no modifications are needed for any other part of the model, but
+this triggers the building of another pre-processing program, \verb=mksurfdata=.
+
+\subsubsection{Prepare and run}
+\label{clm45run}
+
+The \verb=CLM45= configuration requires a separate entries in the namelist input
+file.
+
+{\footnotesize
+\begin{Verbatim}
+ &clm_inparm
+ fpftcon = 'pft-physiology.c130503.nc',
+ fsnowoptics = 'snicar_optics_5bnd_c090915.nc',
+ fsnowaging = 'snicar_drdt_bst_fit_60_c070416.nc',
+ hist_nhtfrq = 0,
+ /
+ &clm_soilhydrology_inparm
+ h2osfcflag = 1,
+ origflag = 0,
+ /
+ &clm_hydrology1_inparm
+ oldfflag = 0,
+ /
+\end{Verbatim}
+}
+
+Things you need to know here:
+
+\begin{enumerate}
+\item The namelist \ref{globparam} is used also by the \verb=mksurfdata=
+program. See at \ref{clm45data} how to obtain needed datasets.
+\item The \verb=hist_nhtfrq= is relative to the output produced by the
+\verb=CLM 4.5= model itself, and does not control the RegCM model output.
+\item To know the \verb=CLM 4.5= output file content, refer to CLM 4.5
+documentation.
+\end{enumerate}
+
+In the case of \verb=CLM 4.5= run, the user needs to run, after the
+\verb=terrain= program, the \verb=mksurfdata= program.
+
+\begin{Verbatim}
+$> cd $REGCM_RUN
+$> ./bin/terrain regcm.in
+$> ./bin/mksurfdata regcm.in
+$> cp $REGCM_GLOBEDAT/CLM/pft-physiology.c070207 input/
+\end{Verbatim}
+
+All the other pre-processing steps are just equal to the one detailed in
+chapter \ref{tutorial}. To run the \verb=CLM 4.5= option in the RegCM model,
+just substitute the executable name:
+
+\begin{Verbatim}
+$> mpirun -np 2 ./bin/regcmMPICLM45 regcm.in
+\end{Verbatim}
+
+\section{Sensitivity experiments hint}
+
+Although the LBC forcing does provide a constraint for the model, as any RCM,
+RegCM4 is characterized by a certain level of internal variability due to its
+non-liner processes (e.g. convection).
+
+For example, if small perturbations are introduced in the initial or lateral
+boundary conditions, the model will generally produce different patterns of,
+e.g. precipitation, that appear as (sometimes seemingly organized) noise when
+compared to the control simulation.
+
+This noise depends on domain size and climatic regimes, for example it is
+especially pronounced in warm climate regimes (e.g. tropics or during the
+summer season) and large doamins.
+
+When doing for example sensitivity experiments to model modifications, e.g. to
+land use change, this internal variability “noise” can be misinterpreted as a
+model response to the factor modified.
+
+Users of RegCM4 should be aware of this when they do sensitivity experiments.
+The best way to filter out this noise is to perform ensembles of simulations
+and lok at the ensemble averages to extract the real model response from the
+noise.

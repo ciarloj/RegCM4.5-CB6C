@@ -1,0 +1,590 @@
+!-----------------------------------------------------------------------
+!
+! This README details namelist parameters for RegCM V4
+!
+!-----------------------------------------------------------------------
+!
+! DOMAIN dimension Stanza
+!
+ &dimparam 
+ iy     = 34,   ! This is number of points in the N/S direction
+ jx     = 48,   ! This is number of points in the E/W direction
+ kz     = 18,   ! Number of vertical levels
+ dsmin  = 0.01, ! Minimum sigma spacing (only used if kz is not 14, 18, or 23)
+ dsmax  = 0.05, ! Maximum sigma spacing (only used if kz is not 14, 18, or 23)
+ nsg    = 1,    ! For subgridding, number of points to decompose. If nsg=1,
+                ! no subgridding is performed. CLM does NOT work as of now with
+                ! subgridding enabled.
+ njxcpus = -1,  ! Number of CPUS to be used in the jx (lon) dimension.
+                ! If <=0 , the executable will try to figure out a suitable
+                ! decomposition.
+ niycpus = -1,  ! Number of CPUS to be used in the iy (lat) dimension.
+                ! If <=0 , the executable will try to figure out a suitable
+                ! decomposition.
+ /
+!
+! Choice of the dynamical core
+!
+ &coreparam
+ idynamic = 1,  ! Choice of dynamical core
+                ! 1 = MM4 hydrostatical core
+                ! 2 = MM5 NON hydrostatical core
+ /
+!
+! DOMAIN geolocation Stanza
+!
+ &geoparam
+ iproj = 'LAMCON', ! Domain cartographic projection. Supported values are:
+                   ! 'LAMCON', Lambert conformal.
+                   ! 'POLSTR', Polar stereographic.
+                   ! 'NORMER', Normal  Mercator.
+                   ! 'ROTMER', Rotated Mercator.
+ ds = 60.0,        ! Grid point horizontal resolution in km
+ ptop = 5.0,       ! Pressure of model top in cbar
+ clat = 45.39,     ! Central latitude  of model domain in degrees
+                   ! North hemisphere is positive
+ clon = 13.48,     ! Central longitude of model domain in degrees
+                   ! West is negative.
+ plat = 45.39,     ! Pole latitude (only for rotated Mercator Proj)
+ plon = 13.48,     ! Pole longitude (only for rotated Mercator Proj)
+ truelatl = 30.0,  ! Lambert true latitude (low latitude side)
+ truelath = 60,    ! Lambert true latitude (high latitude side)
+ i_band = 0,       ! Use this to enable a tropical band. In this case the ds,
+                   ! iproj, clat, clon parameters are not considered.
+ /
+!
+! DOMAIN terrain generation parameters
+!
+ &terrainparam
+ domname  = 'AQWA',           ! Name of the domain/experiment.
+                              ! Controls naming of input files
+ smthbdy = .false.,           ! Smoothing Control flag
+                              !  true -> Perform extra smoothing in boundaries
+ lakedpth    = .false.,       ! If using lakemod (see below), produce from
+                              ! terrain program the domain bathymetry
+ ltexture    = .false.,       ! If using DUST tracers (see below), produce
+                              ! the domain soil texture dataset
+ lsmoist     = .false.,       ! Use Satellite Soil Moisture Dataset for
+                              ! initialization of soil moisture.
+ fudge_lnd   = .false.,       ! Fudging Control flag, for landuse of grid 
+ fudge_lnd_s = .false.,       ! Fudging Control flag, for landuse of subgrid
+ fudge_tex   = .false.,       ! Fudging Control flag, for texture of grid
+ fudge_tex_s = .false.,       ! Fudging Control flag, for texture of subgrid
+ fudge_lak   = .false.,       ! Fudging Control flag, for lake of grid
+ fudge_lak_s = .false.,       ! Fudging Control flag, for lake of subgrid
+ h2opct = 50.,                ! Surface min H2O percent to be considered water
+ h2ohgt = .false.,            ! Allow water points to have hgt greater than 0
+ ismthlev = 1,                ! How many times apply the 121 smoothing
+ dirter = 'input/',           ! Output directory for terrain files
+ inpter = 'globdata/',        ! Input directory for SURFACE dataset
+ moist_filename = 'moist.nc', ! Read initial moisture and snow from this file
+ /
+!
+! Debug I/O printout level.
+!
+ &debugparam
+ debug_level = 0, ! Currently value of 2 and 3 control previous DIAG flag
+ dbgfrq = 3,      ! Interval for printout if debug_level >= 3
+ /
+!
+! Buffer Zone Control relaxation + diffusion term
+!
+ &boundaryparam
+ nspgx  = 12, ! nspgx-1 represent the number of cross point slices on
+              ! the boundary sponge or relaxation boundary conditions.
+ nspgd  = 12, ! nspgd-1 represent the number of dot point slices on 
+              ! the boundary sponge or relaxation boundary conditions.
+ high_nudge =    3.0D0, ! Nudge value high range
+ medium_nudge =  2.0D0, ! Nudge value medium range
+ low_nudge =     1.0D0  ! Nudge value low range
+ /
+!
+! ICBC Global data input control
+!
+ &globdatparam
+ ibdyfrq =     6,            ! boundary condition interval (hours)
+ ssttyp = 'OI_WK',           ! Type of Sea Surface Temperature used
+                             !  One in: GISST, OISST, OI2ST, OI_WK, OI2WK,
+                             !          FV_A2, FV_B2, EH5A2, EH5B1, EHA1B,
+                             !          EIN75, EIN15, ERSST, ERSKT, CCSST,
+                             !          CA_XX, HA_XX, EC_XX, IP_XX, GF_XX,
+                             !          CN_XX, MP_XX
+ dattyp = 'EIN15',           ! Type of global analysis datasets used
+                             !  One in: ECMWF, ERA40, EIN75, EIN15, EIN25,
+                             !          ERAHI, NNRP1, NNRP2, NRP2W, GFS11,
+                             !          FVGCM, FNEST, EH5A2, EH5B1, EHA1B,
+                             !          CCSMN, ECEXY, CA_XX, HA_XX, EC_XX,
+                             !          IP_XX, GF_XX, CN_XX, MP_XX
+                             ! with XX for CMIP5 datasets in 26, 45, 85
+ chemtyp = 'MZ6HR',          ! Type of Global Chemistry boundary conditions
+                             ! One in : MZ6HR, 6 hours MOZART output
+                             !        : MZCLM, MOZART climatology 1999-2009
+ gdate1 = 1990060100,        ! Start date for ICBC data generation
+ gdate2 = 1990070100,        ! End data for ICBC data generation
+ calendar = 'gregorian',     ! Calendar type : gregorian, noleap, 360_day
+ dirglob = 'input/',         ! Path for ICBC produced input files
+ inpglob = 'globdata/',      ! Path for ICBC global input datasets.
+ ensemble_run = .false.,     ! If this is a member of a perturbed ensemble
+                             ! run. Activate random noise added to input
+                             ! ICBC controlled by the perturbparam stanza
+                   ! Look http://users.ictp.it/~pubregcm/RegCM4/globedat.htm
+                   ! on how to download them.
+ /
+!
+! Nesting control
+!
+ &fnestparam
+ coarse_outdir = 'globdata/RegCM', ! Coarse domain output dir if FNEST
+ coarse_domname = 'EUROPE',        ! Coarse domain domname
+ /
+!
+! Perturbation control for ensembles
+!
+ &perturbparam
+ lperturb_topo = .false.,     ! Add perturbation to surface elevation
+ perturb_frac_topo = 0.001D0, ! Fractional value of the perturbation on topo
+ lperturb_ts = .false.,       ! Add perturbation to surface temeprature
+ perturb_frac_ts = 0.001D0,   ! Fractional value of the perturbation on ts
+ lperturb_ps = .false.,       ! Add perturbation to surface pressure
+ perturb_frac_ps = 0.001D0,   ! Fractional value of the perturbation on ps
+ lperturb_t  = .false.,       ! Add perturbation to temperature
+ perturb_frac_t  = 0.001D0,   ! Fractional value of the perturbation on t
+ lperturb_q  = .false.,       ! Add perturbation to humidity mixing ratio
+ perturb_frac_q  = 0.001D0,   ! Fractional value of the perturbation on q
+ lperturb_u  = .false.,       ! Add perturbation to zonal velocity
+ perturb_frac_u  = 0.001D0,   ! Fractional value of the perturbation on u
+ lperturb_v  = .false.,       ! Add perturbation to meridional velocity
+ perturb_frac_v  = 0.001D0,   ! Fractional value of the perturbation on v
+ /
+!
+! Model start/restart control
+!
+ &restartparam
+ ifrest  = .false. ,   ! If a restart
+ mdate0  = 1990060100, ! Global start (is globidate1)
+ mdate1  = 1990060100, ! Start date of this run
+ mdate2  = 1990060200, ! End date for this run
+ /
+!
+! Model timing parameters
+!
+ &timeparam
+ dt     =   150.,   ! time step in seconds
+ dtrad  =    30.,   ! time interval solar radiation calculated (minutes)
+ dtabem =    18.,   ! time interval absorption-emission calculated (hours)
+ dtsrf  =   600.,   ! time interval at which land model is called (seconds)
+ dtche  =   900.,   ! time interval at which chem model is called (seconds)
+ /
+!
+! Model Output control
+!
+ &outparam
+ ifsave  = .true. ,           ! Create SAV files for restart
+ savfrq  =     0.,            ! Frequency in hours to create them (0 = monthly)
+ ifatm   = .true. ,           ! Output ATM ?
+ atmfrq  =     6.,            ! Frequency in hours to write to ATM
+ ifrad   = .true. ,           ! Output RAD ?
+ radfrq  =     6.,            ! Frequency in hours to write to RAD
+ ifsts   = .true. ,           ! Output STS (frequence is daily) ?
+ ifsrf   = .true. ,           ! Output SRF ?
+ srffrq  =     3.,            ! Frequency in hours to write to SRF
+ ifsub   = .true. ,           ! Output SUB ?
+ subfrq  =     6.,            ! Frequency in hours to write to SUB
+ iflak   = .true.,            ! Output LAK ?
+ lakfrq  =     6.,            ! Frequency in hours to write to LAK
+ ifchem  = .true.,            ! Output CHE ?
+ ifopt   = .false.,           ! Output OPT ?
+ chemfrq =     6.,            ! Frequency in hours to write to CHE
+ enable_atm_vars = 64*.true., ! Mask to eventually disable variables ATM
+ enable_srf_vars = 30*.true., ! Mask to eventually disable variables SRF
+ enable_rad_vars = 23*.true., ! Mask to eventually disable variables RAD
+ enable_sub_vars = 17*.true., ! Mask to eventually disable variables SUB
+ enable_sts_vars = 17*.true., ! Mask to eventually disable variables STS
+ enable_lak_vars = 18*.true., ! Mask to eventually disable variables LAK
+ enable_opt_vars = 13*.true., ! Mask to eventually disable variables OPT
+ enable_che_vars = 24*.true., ! Mask to eventually disable variables CHE
+ dirout  = './output',        ! Path where all output will be placed
+ lsync   = .false.,           ! If sync of output files at every timestep is
+                              ! requested. Note, it has a performance impact.
+                              ! Enabled by default if debug_level > 2
+ idiag = 0,                   ! Enable tendency diagnostic output in the ATM
+                              ! file. NOTE: output file gets HUGE.
+ do_parallel_netcdf_in  = .false., ! This enables paralell input
+                                   ! Each processors reads its slice in the
+                                   ! input file. Enable ONLY in case of
+                                   ! HUGE input bandwidth,
+ do_parallel_netcdf_out = .false., ! This enables paralell output if the 
+                                   ! hdf5/netcdf libraries support it and
+                                   ! the model is compiled with :
+                                   !    --enable-nc4-parallel
+ /
+!
+! Model Physics
+!
+ &physicsparam
+ iboudy  =          5,  ! Lateral Boundary conditions scheme
+                        !   0 => Fixed
+                        !   1 => Relaxation, linear technique.
+                        !   2 => Time-dependent
+                        !   3 => Time and inflow/outflow dependent.
+                        !   4 => Sponge (Perkey & Kreitzberg, MWR 1976)
+                        !   5 => Relaxation, exponential technique.
+ isladvec =         0,  ! Semilagrangian advection scheme for tracers and
+                        ! humidity
+                        !   0 => Disabled
+                        !   1 => Enable Semi Lagrangian Scheme
+ ibltyp  =          1,  ! Boundary layer scheme
+                        !   0 => Frictionless
+                        !   1 => Holtslag PBL (Holtslag, 1990)
+                        !   2 => UW PBL (Bretherton and McCaa, 2004)
+ icup_lnd =          4, ! Cumulus convection scheme Over Land
+ icup_ocn =          4, ! Cumulus convection scheme Over Icean
+                        !   1 => Kuo
+                        !   2 => Grell
+                        !   3 => Betts-Miller (1986) DOES NOT WORK !!!
+                        !   4 => Emanuel (1991)
+                        !   5 => Tiedtke (1996)
+                        !   6 => Kain-Fritsch (1990), Kain (2004)
+   igcc  =          1,  ! Grell Scheme Cumulus closure scheme
+                        !   1 => Arakawa & Schubert (1974)
+                        !   2 => Fritsch & Chappell (1980)
+ ipptls  =          2,  ! Moisture scheme
+                        !   1 => Explicit moisture (SUBEX; Pal et al 2000)
+                        !   2 => Explicit moisture Nogherotto/Tompkins
+ iocnflx =          2,  ! Ocean Flux scheme
+                        !   1 => Use BATS1e Monin-Obukhov
+                        !   2 => Zeng et al (1998)
+                        !   3 => Coare bulk flux algorithm (snowice),
+                        !        only activated with coupling
+ icumcloud =        2,  ! Use different models for cumulus clouds
+ iocncpl =          0,  ! Activates RegCM-ROMS coupled model
+                        !   0 => no coupling
+                        !   1 => coupling activated
+   iocnrough =      1,  ! Zeng Ocean model roughness formula to use.
+                        !   1 => (0.0065*ustar*ustar)/egrav
+                        !   2 => (0.013*ustar*ustar)/egrav + 0.11*visa/ustar
+ ipgf    =          0,  ! Pressure gradient force scheme
+                        !   0 => Use full fields
+                        !   1 => Hydrostatic deduction with pert. temperature
+ iemiss  =          0,  ! Use computed long wave emissivity
+ lakemod =          0,  ! Use lake model
+ ichem   =          0,  ! Use active aerosol chemical model
+ scenario =      'A1B', ! IPCC Scenario to use in A1B,A2,B1,B2
+                        ! RCP Scenario in RCP3PD,RCP4.5,RCP6,RCP8.5
+ idcsst   =          0, ! Use diurnal cycle sst scheme
+ iseaice  =          0, ! Model seaice effects
+ idesseas =          0, ! Model desert seasonal albedo variability
+ iconvlwp =          0, ! Use convective liquid water path as the large-scale
+                        ! liquid water path
+ irrtm    =          0, ! Use RRTM radiation scheme instead of CCSM
+ iclimao3 =          0, ! Use O3 climatic dataset from SPARC CMIP5
+ isolconst =         1, ! Use a constant 1367 W/m^2 instead of the prescribed
+                        ! TSI recommended CMIP5 solar forcing data.
+ islab_ocean =       0, ! Activate the SLAB ocean model
+ itweak =            0, ! Tweak parameter. Enables modifications in tweakparam.
+ /
+!
+! Moisture scheme comtrol (ipptls = 1)
+!
+ &subexparam
+ ncld      =          1, ! # of bottom model levels with no clouds
+ qck1land  =   .250E-03, ! Autoconversion Rate for Land
+ qck1oce   =   .250E-03, ! Autoconversion Rate for Ocean
+ gulland   =        0.4, ! Fract of Gultepe eqn (qcth) when precip occurs
+ guloce    =        0.4, ! Fract of Gultepe eqn (qcth) for ocean
+ rhmax     =       1.01, ! RH at whicn FCC = 1.0
+ rh0oce    =       0.90, ! Relative humidity threshold for ocean
+ rh0land   =       0.80, ! Relative humidity threshold for land
+ tc0       =      238.0, ! Below this temperature, rh0 begins to approach unity
+ cevaplnd  =   .100E-02, ! Raindrop evap rate coef [[(kg m-2 s-1)-1/2]/s]
+ cevapoce  =   .100E-02, ! Raindrop evap rate coef [[(kg m-2 s-1)-1/2]/s]
+ caccrlnd  =      3.000, ! Raindrop accretion rate [m3/kg/s]
+ caccroce  =      3.000, ! Raindrop accretion rate [m3/kg/s]
+ cllwcv    =     0.3E-3, ! Cloud liquid water content for convective precip.
+ clfrcvmax =       1.00, ! Max cloud fractional cover for convective precip.
+ cftotmax  =       0.75, ! Max total cover cloud fraction for radiation
+ conf      =      1.0D0, ! Condensation threshold
+ /
+!
+! New Microphysics Option (ipptls = 2)
+!
+ &microparam
+  budget_compute = .false.,  ! Verify enthalpy and moisture conservation
+  nssopt = 1,                ! Supersaturation Computation
+                             ! 0 => No scheme
+                             ! 1 => Tompkins
+                             ! 2 => Lohmann and Karcher
+                             ! 3 => Gierens
+  kautoconv = 4,             !  Choose the autoconversion paramaterization
+                             ! => 1 Klein & Pincus (2000)
+                             ! => 2 Khairoutdinov and Kogan (2000)
+                             ! => 3 Kessler (1969)
+                             ! => 4 Sundqvist
+  ksemi = 1.0D0,             ! Implicit/Explicit control 
+                             ! NOT ACTIVATED YET - IT DOES NOT WORK!
+                             ! ksemi == 0 => scheme is fully explicit
+                             ! ksemi == 1 => scheme is fully implicit
+                             ! 0<ksemi<1  => scheme is semi-implicit
+  vqxr = 4.0D0,              ! Rain fall speed (default is 4 m/s)
+  vqxi = 0.15D0,             ! Ice fall speed (default is 0.15 m/s)
+  vqxs = 1.0D0,              ! Snow fall speed (default is 1 m/s)
+  zauto_rate_khair = 0.355D0,! Autoconversion coefficient for kautoconv=2
+  zauto_rate_kessl = 1.D-3,  ! Autoconversion coefficient for kautoconv=3
+  zauto_rate_klepi = 0.5D-3, ! Autoconversion coefficient for kautoconv=1
+  rkconv = 1.666D-4,         ! Autoconversion coefficient for kautoconv=4
+  rcovpmin = 0.1D0,          ! Minimum precipitation coverage
+  rpecons = 5.547D-5,        ! Evaporation constant Kessler
+ /
+!
+! Grell Cumulus scheme control
+!
+ &grellparam
+ shrmin = 0.25,       ! Minimum Shear effect on precip eff.
+ shrmax = 0.50,       ! Maximum Shear effect on precip eff.
+ edtmin = 0.25,       ! Minimum Precipitation Efficiency
+ edtmax = 0.50,       ! Maximum Precipitation Efficiency
+ edtmino = 0.25,      ! Minimum Precipitation Efficiency (o var)
+ edtmaxo = 0.50,      ! Maximum Precipitation Efficiency (o var)
+ edtminx = 0.25,      ! Minimum Precipitation Efficiency (x var)
+ edtmaxx = 0.50,      ! Maximum Precipitation Efficiency (x var)
+ shrmin_ocn = 0.25,   ! Minimum Shear effect on precip eff. OCEAN points
+ shrmax_ocn = 0.50,   ! Maximum Shear effect on precip eff.
+ edtmin_ocn = 0.25,   ! Minimum Precipitation Efficiency
+ edtmax_ocn = 0.50,   ! Maximum Precipitation Efficiency
+ edtmino_ocn = 0.25,  ! Minimum Precipitation Efficiency (o var)
+ edtmaxo_ocn = 0.50,  ! Maximum Precipitation Efficiency (o var)
+ edtminx_ocn = 0.25,  ! Minimum Precipitation Efficiency (x var)
+ edtmaxx_ocn = 0.50,  ! Maximum Precipitation Efficiency (x var)
+ pbcmax = 150.0,      ! Max depth (mb) of stable layer b/twn LCL & LFC
+ mincld = 150.0,      ! Min cloud depth (mb).
+ htmin = -250.0,      ! Min convective heating
+ htmax = 500.0,       ! Max convective heating
+ skbmax = 0.4,        ! Max cloud base height in sigma
+ dtauc = 30.0,        ! Fritsch & Chappell (1980) ABE Removal Timescale (min)
+ /
+!
+! Emanuel Cumuls scheme control
+!
+ &emanparam
+ minsig = 0.95,       ! Lowest sigma level from which convection can originate
+ elcrit_ocn = 0.0011, ! Autoconversion threshold water content (g/g) over ocean
+ elcrit_lnd = 0.0011, ! Autoconversion threshold water content (g/g) over land
+ tlcrit = -55.0,      ! Below tlcrit auto-conversion threshold is zero
+ entp = 1.5,          ! Coefficient of mixing in the entrainment formulation
+ sigd = 0.05,         ! Fractional area covered by unsaturated dndraft
+ sigs = 0.12,         ! Fraction of precipitation falling outside of cloud
+ omtrain = 50.0,      ! Fall speed of rain (Pa/s)
+ omtsnow = 5.5,       ! Fall speed of snow (Pa/s)
+ coeffr = 1.0,        ! Coefficient governing the rate of rain evaporation
+ coeffs = 0.8,        ! Coefficient governing the rate of snow evaporation
+ cu = 0.7,            ! Coefficient governing convective momentum transport
+ betae = 10.0,        ! Controls downdraft velocity scale
+ dtmax = 0.9,         ! Max negative parcel temperature perturbation below LFC
+ alphae = 0.2,        ! Controls the approach rate to quasi-equilibrium
+ damp = 0.1,          ! Controls the approach rate to quasi-equilibrium
+ epmax_ocn = 0.999,   ! Maximum precipitation efficiency (ocean)
+ epmax_lnd = 0.999,   ! Maximum precipitation efficiency (land)
+ /
+!
+! Tiedtke Cumulus scheme control
+!
+ &tiedtkeparam
+ iconv = 4,           ! Actual used scheme.
+ entrmax = 1.75D-3,   ! Max entrainment iconv=[1,2,3]
+ entrdd  = 3.0D-4,    ! Entrainment rate for cumulus downdrafts
+ entrpen = 1.75D-3,   ! Entrainment rate for penetrative convection
+ entrscv = 3.0D-4,    ! Entrainment rate for shallow convection iconv=[1,2,3]
+ entrmid = 1.0D-4,    ! Entrainment rate for midlevel convection iconv=[1,2,3]
+ cprcon = 1.0D-4,     ! Coefficient for determining conversion iconv=[1,2,3]
+ detrpen = 0.75D-4,   ! Detrainment rate for penetrative convection iconv=4
+ entshalp = 2.0D0,    ! shallow entrainment factor for entrorg iconv=4
+ rcuc_lnd = 0.05D0,   ! Convective cloud cover for rain evporation iconv=4
+ rcuc_ocn = 0.05D0,   ! Convective cloud cover for rain evporation iconv=4
+ rcpec_lnd = 5.55D-5, ! Coefficient for rain evaporation below cloud iconv=4
+ rcpec_ocn = 5.55D-5, ! Coefficient for rain evaporation below cloud iconv=4
+ rhebc_lnd = 0.7D0,   ! Critical rh below cloud for evaporation iconv=4
+ rhebc_ocn = 0.9D0,   ! Critical rh below cloud for evaporation iconv=4
+ rprc_lnd = 1.4D-3,   ! conversion coefficient from cloud water iconv=4
+ rprc_ocn = 1.4D-3,   ! conversion coefficient from cloud water iconv=4
+ /
+!
+! Kain Fritsch cumulus parameters
+!
+ &kfparam
+ kf_trigger = 3,      ! Trigger mechanism. Allowed values 1 and 3
+ kf_entrate = 0.03D0, ! Entrainment rate
+ /
+!
+! Holtslag PBL scheme control
+!
+ &holtslagparam
+ ricr_ocn = 0.25D0,  ! Critical Richardson Number over Ocean
+ ricr_lnd = 0.25D0,  ! Critical Richardson Number over Land
+ zhnew_fac = 0.25D0, ! Multiplicative factor for zzhnew in holtpbl
+ /
+!
+! UW PBL scheme control
+!
+ &uwparam
+ iuwvadv = 0,     ! 0=standard T/QV/QC advection, 1=GB01-style advection
+                  ! 1 is ideal for MSc simulation, but may have stability issues
+ atwo = 15.0D0,   ! Efficiency of enhancement of entrainment by cloud evap.
+                  !  see Grenier and Bretherton (2001) Mon. Wea. Rev.
+                  !  and Bretherton and Park (2009) J. Clim.
+ rstbl = 1.5D0,   ! Scaling parameter for stable boundary layer eddy length
+                  ! scale.  Higher values mean stronger mixing in stable 
+                  ! conditions
+ czero = 5.869D0, ! Czero constant in UW PBL (eqn 44a and pgs 856-857)
+ /
+!
+! SLAB Ocean model, or q-flux adjusted mixed layer model
+!
+ &slabocparam
+ do_qflux_adj  = .false.,  ! Activate SLAB Ocean model surface fluxes adjust
+                           ! from an already created climatology
+ do_restore_sst = .true.,  ! Create during the run the SLAB Ocean model surface
+                           ! fluxes climatology to be used in a subsequent run
+ sst_restore_timescale = 5.0D0,  ! Time interval in days in building the
+                                 ! q-flux adjustment
+ mixed_layer_depth     = 50.0D0, ! Depth in meters of the Ocean mixed layer.
+ /
+!
+! RRTM Radiation scheme parameters
+!
+ &rrtmparam
+ inflgsw  = 2, ! 0 = use the optical properties calculated in prep_dat_rrtm
+               !     (same as standard radiation)
+               ! 2 = use RRTM option to calculate cloud optical properties
+               !     from water path and cloud drop radius
+ iceflgsw = 3, ! Flag for ice particle specification
+               !   0 => ice effective radius, r_ec, (Ebert and Curry, 1992),
+               !        r_ec must be >= 10.0 microns
+               !   1 => ice effective radius, r_ec, (Ebert and Curry, 1992),
+               !        r_ec range is limited to 13.0 to 130.0 microns
+               !   2 => ice effective radius, r_k, (Key, Streamer Ref. Manual,
+               !        1996), r_k range is limited to 5.0 to 131.0 microns
+               !   3 => generalized effective size, dge, (Fu, 1996),
+               !        dge range is limited to 5.0 to 140.0 microns
+               !        [dge = 1.0315 * r_ec]
+ liqflgsw = 1, ! Flag for liquid droplet specification
+               !   0 => Compute the optical depths due to water clouds in ATM
+               !        (currently not supported)
+               !   1 => The water droplet effective radius (microns) is input
+               !        and the optical depths due to water clouds are computed
+               !        as in Hu and Stamnes, J., Clim., 6, 728-742, (1993).
+ inflglw  = 2, ! Flag for cloud optical properties as above but for LW
+ iceflglw = 3, ! Flag for ice particle specification as above but for LW
+ liqflglw = 1, ! Flag for liquid droplet specification as above but for LW
+ idrv = 0,     ! Flag for calculation of dFdT, the change in upward flux as
+               ! a function of surface temperature [0=off, 1=on]
+ icld  = 1,    ! Cloud Overlap hypothesis
+ irng = 1,     ! mersenne twister random generator for McICA COH
+ /
+!
+! Chemical control parameter
+!
+ &chemparam
+ chemsimtype = 'CBMZ    ', ! Which chemical tracers to be activated.
+                           ! One in :
+                           !   DUST   : Activate 4 dust bins scheme
+                           !   SSLT   : Activate 2 bins Sea salt scheme
+                           !   DUSS   : Activate DUST + SSLT
+                           !   CARB   : Activate 4 species black/anthropic
+                           !            carbon simulations
+                           !   SULF   : Activate SO2 and SO4 tracers
+                           !   SUCA   : Activate both SUKF and CARB
+                           !   AERO   : Activate all DUST, SSLT, CARB and SULF
+                           !   CBMZ   : Activate gas phase and sulfate
+                           !   CB6C   : Activate CB6r2-C gas phase
+                           !            required for SOA production
+                           !   DCCB   : Activate CBMZ +DUST +CARB
+                           !   POLLEN : Activate POLLEN transport scheme
+ isorgam   = 0,  ! Activate SORGAM for SOAs from CB6r2
+ ichsolver = 1,  ! Activate the chemical solver
+ ichsursrc = 1,  ! Enable the emissions
+ ichdrdepo = 1,  ! 1 = enable tracer surface dry deposition. For dust,
+                 !     it is calculated by a size settling and dry
+                 !     deposition scheme. For other aerosol,a dry
+                 !     deposition velocity is simply prescribed further.
+ ichebdy = 1,    ! Enable boundary conditions read
+ ichcumtra = 1,  ! 1 = enable tracer convective transport and mixing.
+ ichremlsc = 1,  ! 1 = wet removal of chemical species (washout and rainout
+                 !     by total rain) is enabled
+ ichremcvc = 1,  ! 1 = wet removal of chemical species (washout and rainout
+                 !     by convective rain) is enabled
+ ichdustemd = 1, ! Choice for parametrisation of dust emission size distribution
+                 ! 1 = use the standard scheme (Alfaro et al., Zakey et al.)
+                 ! 2 = use the the revised soil granulometry + Kok et al., 2011
+ ichdiag = 0,    ! 1 = enable writing of additional diagnostics in the output
+                 ! Not activated with isorgam = 1 -> switch to =0
+ idirect   = 1,  ! Choice to enable or not aerosol feedbacks on radiation and
+                 ! dynamics (aerosol direct and semi direct effcts):
+                 ! 1 = no coupling to dynamic and thermodynamic. However
+                 !     the clear sky surface and top of atmosphere 
+                 !     aerosol radiative forcings are diagnosed.
+                 ! 2 = allows aerosol feedbacks on radiative,
+                 !     thermodynamic and dynamic fields.
+ iindirect = 0,  ! Enable sulfate indirect effect in radiation scheme
+ rdstemfac = 1.0,! Aerosol correction factor (Laurent et al, 2008)
+ ichjphcld = 1,  ! Impact of cloud aod on photolysis coef
+ ichbion = 0,    ! ???????????????????????????????????///
+ /
+!
+! CLM parameters
+!
+ &clmparam
+ dirclm = 'input/', ! CLM path to Input data produced by clm2rcm. If 
+                    ! relative, It should be how to reach the Input dir
+                    ! from the Run dir.
+ clmfrq =  12.,     ! Frequency for CLM own output write
+ imask  =   1,      ! For CLM, Type of land surface parameterization
+                    !   1 => using DOMAIN.INFO for landmask (same as BATS)
+                    !   2 => using mksrf_navyoro file landfraction for
+                    !        landmask and perform a weighted average over
+                    !        ocean/land gridcells; for example:
+                    ! tgb = tgb_ocean*(1-landfraction)+tgb_land*landfraction
+ /
+!
+! Coupled model parameters
+!
+ &cplparam
+ cpldt        = 10800., ! Coupling time step in sec. 
+ cpldbglevel  = 1,      ! Debug level
+                        ! 1 => basic output
+                        ! 2 => grid information of each component is written
+                        !      to VTK file
+                        ! 3 => exchange fields are written to netcdf file at
+                        !      each coupling time step 
+                        ! 4 => exchange fields are written to a ASCII file at
+                        !      each coupling time step
+ /
+!
+! Tweaking parameters
+!
+ &tweakparam
+ itweak_sst = 0,              ! Enable adding sst_tweak to input TS
+ itweak_temperature = 0,      ! Enable adding temperature_tweak to input T
+ itweak_solar_irradiance = 0, ! Add solar_tweak to solar constant
+ itweak_greenhouse_gases = 0, ! Multiply gas_tweak_factors to GG concentrations
+ sst_tweak = 0.0D0,           ! In K
+ temperature_tweak = 0.0D0,   ! In K
+ solar_tweak = 0.0D0,         ! In W m-2 (1367.0 is default solar)
+ gas_tweak_factors = 1.0D0, 1.0D0 , 1.0D0 , 1.0D0 , 1.0D0,
+ !                   CO2    CH4     N2O     CFC11   CFC12
+ /
+!
+! CLM 4.5 parameters
+!
+ &clm_inparm
+ fpftcon = 'pft-physiology.c130503.nc',
+ fsnowoptics = 'snicar_optics_5bnd_c090915.nc',
+ fsnowaging = 'snicar_drdt_bst_fit_60_c070416.nc',
+ /
+ &clm_soilhydrology_inparm
+ h2osfcflag = 1,
+ origflag = 0,
+ /
+ &clm_hydrology1_inparm
+ oldfflag = 0,
+ /
+! ####################################################################
