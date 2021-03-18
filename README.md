@@ -14,8 +14,10 @@ emissions: Main/chemlib/mod_che_ncio.F90
 
 CHBC: PreProc/ICBC/mod_ch_icbc.F90 or (mod_ch_icbc_clim.F90)
 
-## Changelog
-version 1: reset emissions for NO, and CHBC for O3, NO, & NO2 back to starting conditions (as CBM-Z)
+More detailed information and a tutorial can be found in the presentations directory. Please cite the paper below when using this model.
+
+## Reference
+Ciarlo`, J.M., Aquilina, N.J., Strada, S. et al. A modified gas-phase scheme for advanced regional climate modelling with RegCM4. Clim Dyn (2021). https://doi.org/10.1007/s00382-021-05722-y
 
 
 ## Contact
