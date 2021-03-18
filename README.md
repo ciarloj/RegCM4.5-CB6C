@@ -16,7 +16,7 @@ CHBC: PreProc/ICBC/mod_ch_icbc.F90 or (mod_ch_icbc_clim.F90)
 
 ## Changelog
 version 1: reset emissions for NO, and CHBC for O3, NO, & NO2 back to starting conditions (as CBM-Z)
-version 2: SORGAM linked with CB-6 (not active - development in progress)
+
 
 ## Contact
 
