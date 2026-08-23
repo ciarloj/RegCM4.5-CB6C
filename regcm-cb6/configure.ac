@@ -45,6 +45,16 @@ AC_ARG_WITH([netcdf],
   [NC_PREFIX="$withval"; NCAUTO="no"], [FAKE="no"]
 )
 
+AC_ARG_WITH([netcdf-fortran],
+  AC_HELP_STRING([--with-netcdf-fortran],
+            [Path to NetCDF-Fortran installation (default: NETCDF environment)]),
+  [NCF_PREFIX="$withval"; NFAUTO="no"], [FAKE="no"]
+)
+
+if eval "test x$NCF_PREFIX" = "x"; then
+  NCF_PREFIX="$NC_PREFIX"
+fi
+
 AC_ARG_WITH([hdf5],
   AC_HELP_STRING([--with-hdf5],
             [Path to HDF5 installation (default: HDF5 environment)]),
@@ -175,33 +185,26 @@ NC_INCLUDES=""
 NC_LDFLAGS=""
  NC_LIBS=""
 
-if eval "test x$NFAUTO = xyes"; then
-  if eval "test x$NCAUTO = xyes"; then
-    NC_INCLUDES="`nc-config --cflags` `nf-config --fflags`"
-    NC_LDFLAGS=""
-    NC_LIBS="`nc-config --libs` `nf-config --flibs`"
-  else
-    NC_INCLUDES="`nf-config --fflags`"
-    NC_LDFLAGS=""
-    NC_LIBS="`nf-config --flibs`"
-  fi
+if eval "test x$NCAUTO = xyes"; then
+  NC_INCLUDES_C="`nc-config --cflags`"
+  NC_LIBS_C="`nc-config --libs`"
 else
-  if eval "test x$NCAUTO = xno"; then
-    NC_INCLUDES="-I$NC_PREFIX/include"
-    NC_LDFLAGS="-L$NC_PREFIX/lib"
-    NC_LIBS="-lnetcdf"
-  else
-    NCVER=`nc-config --version | cut -d " " -f 2`
-    if eval "test x$NCVER = x4.0.1"; then
-      NC_INCLUDES="`nc-config --fflags`"
-    else
-      # new netcdf library has this
-      NC_INCLUDES="-I`nc-config --includedir`"
-    fi
-    NC_LDFLAGS=""
-    NC_LIBS="`nc-config --libs`"
-  fi
+  NC_INCLUDES_C="-I$NC_PREFIX/include"
+  NC_LDFLAGS="-L$NC_PREFIX/lib"
+  NC_LIBS_C="-lnetcdf"
 fi
+
+if eval "test x$NFAUTO = xyes"; then
+  NC_INCLUDES_F="`nf-config --fflags`"
+  NC_LIBS_F="`nf-config --flibs`"
+else
+  NC_INCLUDES_F="-I$NCF_PREFIX/include"
+  NC_LDFLAGS="$NC_LDFLAGS -L$NCF_PREFIX/lib"
+  NC_LIBS_F="-lnetcdff"
+fi
+
+NC_INCLUDES="$NC_INCLUDES_C $NC_INCLUDES_F"
+NC_LIBS="$NC_LIBS_C $NC_LIBS_F"
 
 AC_SUBST(NC_PREFIX)
 AC_SUBST(NC_INCLUDES)
